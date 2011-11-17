@@ -9,7 +9,7 @@ var rol = {};
 //(function() {
 
     /**
-     * An enumeration that identifies direction actor is facing.
+     * Enumeration that identifies direction actor is facing.
      * 
      */
     var FACING = {
@@ -21,7 +21,7 @@ var rol = {};
     };
 
     /**
-     * An enumeration that identifies what key was pressed and which should be
+     * Enumeration that identifies what key was pressed and which should be
      * the facing direction for that keycode.
      * 
      */
@@ -46,6 +46,23 @@ var rol = {};
             code: 32,
             facing: FACING.NONE
         }
+    };
+    
+    /**
+     * Enumeration that identifies in which phase is the turn.
+     */
+    var TURN_PHASE = {
+        NONE:            0,
+        START:           1,
+        PLAYER_START:    2,
+        PLAYER_ACT:      3,
+        PLAYER_WAIT_END: 4,
+        PLAYER_END:      5,
+        ENEMY_START:     6,
+        ENEMY_ACT:       7,
+        ENEMY_WAIT_END:  8,
+        ENEMY_END:       9,
+        END:             10
     };
 
     /**
@@ -463,11 +480,13 @@ var rol = {};
         keys_down: {},
         player: null,
         enemies: [],
+        turn_phase: TURN_PHASE.NONE,
         init: function() {
             this.player = new Hero("Hero", new Sprite(new Pacman(10, 10, 10), "green", "blue"));
             this.player.sprite.fill = this.player.shooting ? "red" : "blue";
             this.enemies.push(new Enemy("Goblin", new Sprite(new Rectangle(100, 100, 20, 20), "black", "yellow")),
                               new Enemy("Orc",    new Sprite(new Rectangle(160, 160, 20, 20), "black", "yellow")));
+            this.turn_phase = TURN_PHASE.START;                    
         },
         do_key_down: function(evt) {
             game.keys_down[evt.keyCode] = true;
@@ -475,26 +494,34 @@ var rol = {};
         do_key_up: function(evt) {
             delete game.keys_down[evt.keyCode];
         },
-        check_collision: function(x, y) {
+        check_collision: function(x, y, actor) {
             if ((x >= this.screen.width) || (x <= 0)) {
                 return true;
             }
             if ((y >= this.screen.height) || (y <= 0)) {
                 return true;
             }
-            for (var i = 0; i < this.enemies.length; i++) {
-                if (this.enemies[i].sprite.is_inside(x, y) == true) {
+            if (actor && actor !== this.player) {
+                if (this.player.sprite.is_inside(x, y) == true) {
                     return true;
+                }
+            }
+            for (var i = 0; i < this.enemies.length; i++) {
+                if (actor !== this.enemies[i]) {
+                    if (this.enemies[i].sprite.is_inside(x, y) == true) {
+                        return true;
+                    }
                 }
             }
             return false;
         },
-        update: function() {
+        move_player: function() {
             var speed = 20;
             var player_x = this.player.sprite.figure.anchor.x;
             var player_y = this.player.sprite.figure.anchor.y;
             var new_player_x = player_x;
             var new_player_y = player_y;
+            var move = false;
             
             this.player.shooting = false;
             
@@ -502,25 +529,34 @@ var rol = {};
                 new_player_y -= speed;
                 this.player.sprite.figure.facing = KEY.UP.facing;
                 delete this.keys_down[KEY.UP.code];
+                move = true;
             }
             if (KEY.DOWN.code in this.keys_down) {
                 new_player_y += speed;
                 this.player.sprite.figure.facing = KEY.DOWN.facing;
                 delete this.keys_down[KEY.DOWN.code];
+                move = true;
             }
             if (KEY.LEFT.code in this.keys_down) {
                 new_player_x -= speed;
                 this.player.sprite.figure.facing = KEY.LEFT.facing;
                 delete this.keys_down[KEY.LEFT.code];
+                move = true;
             }
             if (KEY.RIGHT.code in this.keys_down) {
                 new_player_x += speed;
                 this.player.sprite.figure.facing = KEY.RIGHT.facing;
                 delete this.keys_down[KEY.RIGHT.code];
+                move = true;
             }
             if (KEY.SPACE.code in this.keys_down) {
                 this.player.shooting = true;
+                move = true;
             }
+            
+            if (move) {
+                this.turn_phase = TURN_PHASE.ENEMY_START;
+            }            
             
             if (this.check_collision(new_player_x, new_player_y) == true) {
                 new_player_x = null;
@@ -528,8 +564,43 @@ var rol = {};
             }
             
             this.player.move_to(new_player_x, new_player_y, false);
+        },
+        move_enemy: function() {
+            for (var i = 0; i < this.enemies.length; i++) {
+                var new_x = this.enemies[i].sprite.figure.anchor.x - 20;
+                var new_y = this.enemies[i].sprite.figure.anchor.y - 20;
+                if (this.check_collision(new_x, new_y, this.enemies[i]) == true) {
+                    new_x = null;
+                    new_y = null;
+                }
+
+                this.enemies[i].move_to(new_x, new_y, false);
+            }
+        },
+        update_player: function() {
+            this.move_player();
+        },
+        update_enemy: function() {
+            this.move_enemy();
+        },
+        update: function() {        
+            switch (this.turn_phase) {
+                case TURN_PHASE.START:
+                    this.turn_phase = TURN_PHASE.PLAYER_START;
+                    break;
+                case TURN_PHASE.PLAYER_START:
+                    this.update_player();
+                    break;
+                case TURN_PHASE.ENEMY_START:
+                    this.update_enemy();
+                    this.turn_phase = TURN_PHASE.END;
+                    break;
+                case TURN_PHASE.END:
+                    this.turn_phase = TURN_PHASE.START;
+                    break;
+            }
             
-            $("#position-p").text(this.player.name + " at " + this.player.sprite.figure.anchor);
+            $("#position-p").text('[' + this.turn_phase + '] ' + this.player.name + " at " + this.player.sprite.figure.anchor);
         },
         draw: function(ctx) {
             ctx.clearRect(0, 0, this.screen.width, this.screen.height);
