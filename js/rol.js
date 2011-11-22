@@ -1,29 +1,64 @@
-/* 
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
+/**
+ * @author <a href="mailto:jose.recuero@gmail.com">Jose Carlos Recuero</a>
  */
 
-// Namespace placeholder
+/**
+ * @namespace Global Namespace placeholder
+ */
 var rol = {};
 
 //(function() {
 
     /**
-     * Enumeration that identifies direction actor is facing.
-     * 
+     * Enumeration that identifies the game object role.
+     * @class Game Object role
+     * @description <p>Every game object should have a role in the application,
+     *              it could belong to the player party, it could be an
+     *              enemy, ...
+     * @property {int} NONE no role
+     * @property {int} PLAYER belongs to the player party
+     * @property {int} ENEMY belongs to the enemy party
+     * @property {int} ALLY belongs to the ally party
+     * @property {int} NPC non-playable character
+     * @property {int} VENDOR vendor character
+     */
+    var ROLE = {
+        NONE: 0,
+        PLAYER: 1,
+        ENEMY: 2,
+        ALLY: 3,
+        NPC: 4,
+        VENDOR: 5
+    };
+
+    /**
+     * Enumeration that identifies direction game object is facing.
+     * @class Game Object Facing Type
+     * @description <p>Every game object should be facing in to a direction
+     *              in the canvas.
+     * @property {int} NONE no face
+     * @property {int} UP face upwards
+     * @property {int} DOWN face downwards
+     * @property {int} LEFT face leftwards
+     * @property {int} RIGHT face rightwards
      */
     var FACING = {
-        NONE:  0,
-        UP:    1,
-        DOWN:  2,
-        LEFT:  3,
-        RIGHT: 4
+        NONE:  0,        
+        UP:    1, 
+        DOWN:  2, 
+        LEFT:  3, 
+        RIGHT: 4  
     };
 
     /**
      * Enumeration that identifies what key was pressed and which should be
      * the facing direction for that keycode.
-     * 
+     * @class Key pressed
+     * @property {Object} UP
+     * @property {Object} DOWN
+     * @property {Object} LEFT
+     * @property {Object} RIGHT
+     * @property {Object} SPACE
      */
     var KEY = {
         UP: {
@@ -50,6 +85,18 @@ var rol = {};
     
     /**
      * Enumeration that identifies in which phase is the turn.
+     * @class Actor Turn Phase
+     * @property {int} NONE
+     * @property {int} START
+     * @property {int} PLAYER_START
+     * @property {int} PLAYER_ACT
+     * @property {int} PLAYER_WAIT_END
+     * @property {int} PLAYER_END
+     * @property {int} ENEMY_START
+     * @property {int} ENEMY_ACT
+     * @property {int} ENEMY_WAIT_END
+     * @property {int} ENEMY_END
+     * @property {int} END
      */
     var TURN_PHASE = {
         NONE:            0,
@@ -67,22 +114,68 @@ var rol = {};
     
     
     /**
-     * Grid properties
+     * Grid properties.
+     * @class Canvas Grid
+     * @property {int} CELL_SIZE Cell size
+     * @property {int} cells_in_width Number of horizontal cells
+     * @property {int} cells_in_height Number of vertical cells
      */
     var GRID = {
-        CELL_SIZE: 20
+        CELL_SIZE: 20,
+        cells_in_width: 0,
+        cells_in_height:0,
+        /**
+         * Initializes GRID.
+         * @public
+         * @function
+         * @param   {int} x_cells
+         *          number of horizontal cells
+         * @param   {int} y_cells
+         *          number of vertical cells
+         * @return  this
+         */
+        init: function(x_cells, y_cells) {
+            this.cells_in_width  = x_cells;
+            this.cells_in_height = y_cells;
+            return this;
+        },
+        /**
+         * Draws the GRID.
+         * @public
+         * @function
+         * @param   {Context} ctx
+         *          canvas 2D context
+         */
+        draw: function(ctx) {
+            var width  = this.CELL_SIZE * this.cells_in_width,
+                height = this.CELL_SIZE * this.cells_in_height,
+                x, y;
+                
+            ctx.strokeStyle = "yellow";
+            ctx.beginPath();
+            for (x = this.CELL_SIZE, y = 0; x < width; x += this.CELL_SIZE) {
+                ctx.moveTo(x, y);
+                ctx.lineTo(x, height);
+            }
+            for (y = this.CELL_SIZE, x = 0; y < height; y += this.CELL_SIZE) {
+                ctx.moveTo(x, y);
+                ctx.lineTo(width, y);
+            }
+            ctx.stroke();
+        }
     };
+    
 
     /**
-     * A Class used to store a point identified by x and y coordinates
-     * 
+     * A Class used to store a point identified by x and y coordinates.
+     * @class   Represents a point.
+     * @property {int} x stores x coordinate
+     * @property {int} y stores y coordinate
      * @constructor
-     * 
-     * @param   { int } x
+     * @param   {int} x
      *          x coordinate
-     * @param   { int } y
+     * @param   {int} y
      *          y coordinate
-     *          
      * @return  this.
      */
     var Point = function(x, y) {
@@ -93,7 +186,8 @@ var rol = {};
     
     /**
      * Point as a string.
-     * 
+     * @public
+     * @function
      * @return  point formatted as a string.
      */
     Point.prototype.toString = function() {
@@ -103,14 +197,14 @@ var rol = {};
     
     /**
      * Basic figure class.
-     * 
+     * @class Abstract Figure
+     * @property {Point} anchor Figure anchor
+     * @property {FACING} facing Figure facing direction
      * @constructor
-     * 
-     * @param   { int } x
+     * @param   {int} x
      *          figure anchor x coordinate
-     * @param   { int } y
+     * @param   {int} y
      *          figure anchor y coordinate
-     *          
      * @return  this.
      */
     var Figure = function(x, y) {
@@ -121,7 +215,8 @@ var rol = {};
     
     /**
      * Move figure to a new position
-     * 
+     * @public
+     * @function
      * @param   { int } x
      *          new x coordinate
      * @param   { int } y
@@ -129,7 +224,6 @@ var rol = {};
      * @param   { boolean } relative
      *          if true, x and y are relative coordinates to the anchor.
      *          if false, x and y are absolute coordinates.
-     * 
      * @return  this
      */
     Figure.prototype.moveTo = function(x, y, relative) {
@@ -143,17 +237,17 @@ var rol = {};
     
     
     /**
-     * Circle class.
-     * 
+     * Circle figure.
+     * @class Circle
+     * @augments Figure
+     * @property {int} ration Circle ratio
      * @constructor
-     * 
-     * @param   { int } x
+     * @param   {int} x
      *          circle center x coordinate
-     * @param   { int } y
+     * @param   {int} y
      *          circle center y coordinate         
-     * @param   { int } r
+     * @param   {int} r
      *          circle ratio
-     *          
      * @return  this.
      */
     var Circle = function(x, y, r) {
@@ -167,23 +261,24 @@ var rol = {};
     
     /**
      * Draw a cicle
-     * 
-     * @param   { Object } ctx
+     * @public
+     * @function
+     * @param   {Context} ctx
      *          canvas 2d context
-     *          
      * @return  none.
      */
     Circle.prototype.draw = function(ctx) {
         ctx.arc(this.anchor.x, this.anchor.y, this.ratio, 0, Math.PI * 2, false);
     };
+    
     /**
      * Checks if a point given by x & y coordinate is inside the circle.
-     * 
-     * @param   { int } x
+     * @public
+     * @function
+     * @param   {int} x
      *          x coordinate.
-     * @param   { int } y
+     * @param   {int} y
      *          y coordinate.
-     *
      * @return  true if coordinate is inside the circle. false if not.          
      */
     Circle.prototype.isInside = function(x, y) {
@@ -194,19 +289,20 @@ var rol = {};
     
     
     /**
-     * Rectangle class.
-     * 
+     * Rectangle figure.
+     * @class Rectangle
+     * @augment Figure
+     * @property {int} width Rectangle width
+     * @property {int} height Rectangle height
      * @constructor
-     * 
-     * @param   { int } x
+     * @param   {int} x
      *          rectangle left top corner x coordinate
-     * @param   { int } y
+     * @param   {int} y
      *          rectangle left top corner y coordinate         
-     * @param   { int } w
+     * @param   {int} w
      *          rectangle width
-     * @param   { int } h
+     * @param   {int} h
      *          rectangle height
-     *          
      * @return  this.
      */
     var Rectangle = function(x, y, w, h) {
@@ -220,11 +316,11 @@ var rol = {};
     jcRap.extend(Rectangle, Figure);
             
     /**
-     * Draw a rectangle
-     * 
-     * @param   { Object } ctx
+     * Draws a rectangle
+     * @public
+     * @function
+     * @param   {Context} ctx
      *          canvas 2d context
-     *          
      * @return  none.
      */
     Rectangle.prototype.draw = function(ctx) {
@@ -238,12 +334,12 @@ var rol = {};
     
     /**
      * Checks if a point given by x & y coordinate is inside the rectangle.
-     * 
-     * @param   { int } x
+     * @public
+     * @function
+     * @param   {int} x
      *          x coordinate.
-     * @param   { int } y
+     * @param   {int} y
      *          y coordinate.
-     *
      * @return  true if coordinate is inside the rectangle. false if not.          
      */
     Rectangle.prototype.isInside = function(x, y) {
@@ -257,17 +353,17 @@ var rol = {};
     
     
     /**
-     * Pacman class.
-     * 
+     * Pacman figure.
+     * @class Pacman
+     * @augments Circle
+     * @property {Array} draw_values Array used to draw the figure
      * @constructor
-     * 
-     * @param   { int } x
+     * @param   {int} x
      *          pacman center x coordinate
-     * @param   { int } y
+     * @param   {int} y
      *          pacman center y coordinate         
-     * @param   { int } r
+     * @param   {int} r
      *          pacman ratio
-     *          
      * @return  this.
      */    
     var Pacman = function(x, y, r) {
@@ -285,11 +381,11 @@ var rol = {};
     jcRap.extend(Pacman, Circle);
     
     /**
-     * Draw a pacman
-     * 
-     * @param   { Object } ctx
+     * Draws a pacman
+     * @public
+     * @function
+     * @param   {Context} ctx
      *          canvas 2d context
-     *          
      * @return  none.
      */    
     Pacman.prototype.draw = function(ctx) {
@@ -323,17 +419,18 @@ var rol = {};
     
 
     /**
-     * Sprite class.
-     * 
+     * Sprite.
+     * @class Sprite
+     * @property {Figure} figure Sprite figure
+     * @property {Object} stroke Sprite stroke color
+     * @property {Object} fill Sprite fill color
      * @constructor
-     * 
-     * @param   { Figure } figure
+     * @param   {Figure} figure
      *          figure to be used as the sprite
-     * @param   { string } stroke
+     * @param   {string} stroke
      *          sprite stroke color
-     * @param   { string } fill
+     * @param   {string} fill
      *          sprite fill color
-     * 
      * @return  this
      */
     var Sprite = function(figure, stroke, fill) {
@@ -343,18 +440,44 @@ var rol = {};
         return this;
     };
     
+    /**
+     * Gets sprite figure anchor.
+     * @public
+     * @function
+     * @return {Point} figure anchor
+     */
     Sprite.prototype.getOrigin = function() {
         return this.figure.anchor;
     };
     
+    /**
+     * Gets sprite figure facing direction.
+     * @public
+     * @function
+     * @return {FACING} figure facing direction
+     */
     Sprite.prototype.getFacing = function() {
         return this.figure.facing;
     };
     
+    /**
+     * Sets sprite figure facing direction.
+     * @public
+     * @function
+     * @param   {FACING} facing
+     *          new facing direction
+     * @return  none
+     */
     Sprite.prototype.setFacing = function(facing) {
         this.figure.facing = facing;
     };
     
+    /**
+     * Moves one time frame.
+     * @public
+     * @function
+     * @return  none.
+     */
     Sprite.prototype.moveFrame = function() {
         if (this.figure && (typeof this.figure.moveFrame === 'function')) {
             this.figure.moveFrame();
@@ -362,12 +485,12 @@ var rol = {};
     };
     
     /**
-     * Draw a sprite
-     * 
-     * @param   { Object } ctx
+     * Draws a sprite
+     * @public
+     * @function
+     * @param   {Context} ctx
      *          canvas 2d context
-     *          
-     * @return  none.
+     * @return  none
      */    
     Sprite.prototype.draw = function(ctx) {
         ctx.strokeStyle = typeof this.stroke ==='function' ? this.stroke() : this.stroke;
@@ -379,16 +502,16 @@ var rol = {};
     };
     
     /**
-     * Move sprite to a new position
-     * 
-     * @param   { int } x
+     * Moves sprite to a new position
+     * @public
+     * @function
+     * @param   {int} x
      *          new x coordinate
-     * @param   { int } y
+     * @param   {int} y
      *          new y coordinate
-     * @param   { boolean } relative
+     * @param   {boolean} relative
      *          if true, x and y are relative coordinates to the anchor.
      *          if false, x and y are absolute coordinates.
-     * 
      * @return  this
      */    
     Sprite.prototype.moveTo = function(x, y, relative) {
@@ -398,25 +521,39 @@ var rol = {};
         
     /**
      * Checks if a point given by x & y coordinate is inside the sprie.
-     * 
-     * @param   { int } x
+     * @public
+     * @function
+     * @param   {int} x
      *          x coordinate.
-     * @param   { int } y
+     * @param   {int} y
      *          y coordinate.
-     *
      * @return  true if coordinate is inside the sprite. false if not.          
      */
     Sprite.prototype.isInside = function(x, y) {
         return this.figure.isInside(x, y);
     };
     
+    /**
+     * Checks if sprite collides with any other sprite.
+     * @public
+     * @function
+     * @param   {int} x
+     *          x coordinate for checking collision
+     * @param   {int} y
+     *          y coordinate for checking collision
+     * @param   {Array} objects
+     *          {@link Array} of {@link Sprite} for checking collisions
+     * @return  {Sprite} if it collides with other sprite. 
+     *          <p><b>true</b> if it is out of screen.
+     *          <p><b>false</b> if it doesn't collide inside the canvas.
+     */
     Sprite.prototype.checkCollision = function(x, y, objects) {
         var i;
 
-        if ((x >= game.screen.width) || (x <= 0)) {
+        if ((x >= GAME.screen.width) || (x <= 0)) {
             return true;
         }
-        if ((y >= game.screen.height) || (y <= 0)) {
+        if ((y >= GAME.screen.height) || (y <= 0)) {
             return true;
         }
 
@@ -433,12 +570,14 @@ var rol = {};
     
     /**
      * Game Object class.
-     * 
+     * @class Game Object
+     * @property {string} name Game object name
+     * @property {Sprite} sprite Game object sprite
+     * @property {boolean} visible Game object visible or hiden
+     * @property {boolean} solid Game object solid or not.=
      * @constructor
-     * 
-     * @param   { string } name
+     * @param   {string} name
      *          game object name
-     *          
      * @return  this
      */    
     var GameObject = function(name) {
@@ -448,26 +587,59 @@ var rol = {};
         this.solid   = true;
     }
     
+    /**
+     * Gets game object sprite figure anchor.
+     * @public
+     * @function
+     * @return {Point} figure anchor
+     */
     GameObject.prototype.getOrigin = function() {
         return this.sprite && this.sprite.getOrigin();
     };
     
+    /**
+     * Gets game object sprite figure facing direction.
+     * @public
+     * @function
+     * @return {FACING} figure facing direction
+     */
     GameObject.prototype.getFacing = function() {
         return this.sprite && this.sprite.getFacing();        
     };
-    
-    
+        
+    /**
+     * Sets game object sprite figure facing direction.
+     * @public
+     * @function
+     * @param   {FACING} facing
+     *          new facing direction
+     * @return  none
+     */
     GameObject.prototype.setFacing = function(facing) {
         this.sprite && this.sprite.setFacing(facing);
     };    
     
+    /**
+     * Checks if game object collides with any other game objects.
+     * @public
+     * @function
+     * @param   {int} x
+     *          x coordinate for checking collision
+     * @param   {int} y
+     *          y coordinate for checking collision
+     * @param   {Array} objects
+     *          {@link Array} of {@link GameObject} for checking collisions
+     * @return  {GameObject} if it collides with other game object. 
+     *          <p><b>true</b> if it is out of screen.
+     *          <p><b>false</b> if it doesn't collide inside the canvas.
+     */
     GameObject.prototype.checkCollision = function(x, y, objects) {
         var i;
 
-        if ((x >= game.screen.width) || (x <= 0)) {
+        if ((x >= GAME.screen.width) || (x <= 0)) {
             return true;
         }
-        if ((y >= game.screen.height) || (y <= 0)) {
+        if ((y >= GAME.screen.height) || (y <= 0)) {
             return true;
         }
 
@@ -481,16 +653,22 @@ var rol = {};
         return false;
     };
     
+    /**
+     * Moves one time frame.
+     * @public
+     * @function
+     * @return  none.
+     */
     GameObject.prototype.moveFrame = function() {
         return this.sprite && this.sprite.moveFrame();
     }
     
     /**
-     * Draw a game object
-     * 
-     * @param   { Object } ctx
+     * Draws a game object
+     * @public
+     * @function
+     * @param   {Context} ctx
      *          canvas 2d context
-     *          
      * @return  none.
      */    
     GameObject.prototype.draw = function(ctx) {
@@ -502,15 +680,15 @@ var rol = {};
     
     /**
      * Move game object to a new position
-     * 
-     * @param   { int } x
+     * @public
+     * @function
+     * @param   {int} x
      *          new x coordinate
-     * @param   { int } y
+     * @param   {int} y
      *          new y coordinate
-     * @param   { boolean } relative
+     * @param   {boolean} relative
      *          if true, x and y are relative coordinates to the anchor.
      *          if false, x and y are absolute coordinates.
-     * 
      * @return  this
      */        
     GameObject.prototype.moveTo = function(x, y, relative) {
@@ -518,6 +696,20 @@ var rol = {};
     };
 
 
+    /**
+     * Bullet game object.
+     * @class Bullet object
+     * @augments GameObject
+     * @constructor
+     * @property {int} ratio bullet ratio
+     * @property {FACING} direction directin bullet travels
+     * @param   {int} x 
+     *          bullet x coordinate
+     * @param   {int} y
+     *          bullet y coordinate
+     * @param   {FACING} direction 
+     *          direction bullet travels
+     */
     var Bullet = function(x, y, direction) {
         var ratio = 5;
         
@@ -529,6 +721,9 @@ var rol = {};
     
     jcRap.extend(Bullet, GameObject);
     
+    /**
+     * @methodOf
+     */
     Bullet.prototype.moveFrame = function() {
         var bullet_speed = GRID.CELL_SIZE,
             origin = this.getOrigin();
@@ -556,15 +751,14 @@ var rol = {};
       
       
     /**
-     * Actor class.
-     * 
+     * Actor game object.
+     * @class Actor game object
+     * @augments GameObject
      * @constructor
-     * 
-     * @param   { string } name
+     * @param   {string} name
      *          actor name
-     * @param   { Sprite } sprite
+     * @param   {Sprite} sprite
      *          sprite that represents the hero
-     *          
      * @return  this
      */
     var Actor = function(name, sprite) {
@@ -577,20 +771,18 @@ var rol = {};
     
     
     /**
-     * Hero class
-     * 
+     * Hero game object.
+     * @class Hero game object
+     * @augments Actor
      * @constructor
-     * 
-     * @param   { string } name
+     * @param   {string} name
      *          hero name
-     * @param   { Sprite } sprite
+     * @param   {Sprite} sprite
      *          sprite that represents the hero
-     *          
      * @return  this
      */
     var Hero = function(name, sprite) {
         Hero._baseConstructor.call(this, name, sprite);
-        this.shooting = false;
         return this;
     };
     
@@ -598,15 +790,14 @@ var rol = {};
     jcRap.extend(Hero, Actor);
     
     /**
-     * Enemy class
-     * 
+     * Enemy game object.
+     * @class Enemy game object
+     * @augments Actor
      * @constructor
-     * 
-     * @param   { string } name
+     * @param   {string} name
      *          enemy name
-     * @param   { Sprite } sprite
+     * @param   {Sprite} sprite
      *          sprite that represents the enemy
-     *          
      * @return  this
      */
     var Enemy = function(name, sprite) {
@@ -618,25 +809,39 @@ var rol = {};
     jcRap.extend(Enemy, Actor);
     
     /**
-     * game variable
-     * 
+     * Main game object
+     * @class Main Game Object
+     * @property {Object} screen Screen Width and Height
+     * @property {GRID}   grid Game grid
+     * @property {int}    loop_timeout Game timeout between updates
+     * @property {Object} keys_down Keys pressed at any time
+     * @property {Hero}   player Player {@link Hero} actor
+     * @property {Array}  enemies Array of {@link Enemy}
+     * @property {Array}  actors Arrays of {@link Actor}
+     * @property {TURN_PHASE} turn_phase Game turn phase
      */
-    var game = {
+    var GAME = {
         screen: {
             width:  200,
             height: 200
         },
+        grid: GRID,
         loop_timeout: 10,
         keys_down: {},
         player: null,
         enemies: [],
         actors: [],
         turn_phase: TURN_PHASE.NONE,
+        /**
+         * Initializes game object
+         * @public
+         * @function
+         */
         init: function() {
             var i;
             
+            this.grid.init(this.screen.width, this.screen.height);
             this.player = new Hero("Hero", new Sprite(new Pacman(10, 10, GRID.CELL_SIZE/2), "green", "blue"));
-            //this.player.sprite.fill = function() { that.player.shooting ? "red" : "blue"; };
             this.enemies.push(new Enemy("Goblin", new Sprite(new Rectangle(100, 100, GRID.CELL_SIZE, GRID.CELL_SIZE), "black", "yellow")),
                               new Enemy("Orc",    new Sprite(new Rectangle(160, 160, GRID.CELL_SIZE, GRID.CELL_SIZE), "black", "yellow")));
             this.turn_phase = TURN_PHASE.START;
@@ -646,12 +851,34 @@ var rol = {};
                 this.addActor(this.enemies[i]);
             }
         },
+        /**
+         * Key Down event handler.
+         * @public
+         * @event
+         * @param   {Event} evt
+         *          event
+         * @return  none
+         */
         doKeyDown: function(evt) {
-            game.keys_down[evt.keyCode] = true;
+            GAME.keys_down[evt.keyCode] = true;
         },
+        /**
+         * Key Up event handler.
+         * @public
+         * @event
+         * @param   {Event} evt
+         *          event
+         * @return  none
+         */
         doKeyUp: function(evt) {
-            delete game.keys_down[evt.keyCode];
+            delete GAME.keys_down[evt.keyCode];
         },
+        /**
+         * Moves player.
+         * @public
+         * @function
+         * @return  none
+         */
         movePlayer: function() {
             var player_origin = this.player.getOrigin(),
                 player_x = player_origin.x,
@@ -659,8 +886,6 @@ var rol = {};
                 new_player_x = player_x,
                 new_player_y = player_y,
                 move = false;
-            
-            this.player.shooting = false;
             
             if (KEY.UP.code in this.keys_down) {
                 new_player_y -= GRID.CELL_SIZE;
@@ -687,7 +912,6 @@ var rol = {};
                 move = true;
             }
             if (KEY.SPACE.code in this.keys_down) {
-                this.player.shooting = true;
                 this.turn_phase = TURN_PHASE.PLAYER_ACT;
             }
             
@@ -702,6 +926,12 @@ var rol = {};
             
             this.player.moveTo(new_player_x, new_player_y, false);
         },
+        /**
+         * Moves all enemies.
+         * @public
+         * @function
+         * @return  none
+         */
         moveEnemy: function() {
             var i,
                 enemies_len;
@@ -721,18 +951,42 @@ var rol = {};
                 this.enemies[i].moveTo(new_x, new_y, false);
             }
         },
+        /**
+         * Player shooting.
+         * @public
+         * @function
+         * @return  none
+         */
         shoot: function() {
             var player = this.player,
                 player_origin = player.getOrigin();
                 
-            player.bullet = new Bullet(player_origin.x, player_origin.y, player.getFacing());
+            player.bullet = new Bullet(player_origin.x, player_origin.y, player.getFacing());            
         },
+        /**
+         * Updates player.
+         * @public
+         * @function
+         * @return  none
+         */
         updatePlayer: function() {
             this.movePlayer();
         },
+        /**
+         * Updates all enemies.
+         * @public
+         * @funcion
+         * @return  none
+         */
         updateEnemy: function() {
             this.moveEnemy();
         },
+        /**
+         * Update player bullet.
+         * @public
+         * @function
+         * @return  none
+         */
         updateBullet: function() {
             var bullet = this.player.bullet,
                 bullet_origin = bullet.getOrigin(),
@@ -747,9 +1001,25 @@ var rol = {};
                 console.log("Bullet hit " + collision.name);
             }
         },
+        /**
+         * Adds a new actor.
+         * @public
+         * @function
+         * @param   {Actor} actor
+         *          new actor to add
+         * @return  none
+         */
         addActor: function(actor) {
             this.actors.push(actor);
         },
+        /**
+         * Removes an actor.
+         * @public
+         * @funcion
+         * @param   {Actor} actor
+         *          actor to remove
+         * @return  none
+         */
         removeActor: function(actor) {
             var len,
                 i;
@@ -761,6 +1031,12 @@ var rol = {};
                 }
             }
         },
+        /**
+         * Updates game object.
+         * @public
+         * @function
+         * @return  none
+         */
         update: function() {        
             switch (this.turn_phase) {
                 case TURN_PHASE.START:
@@ -788,34 +1064,60 @@ var rol = {};
             
             $("#position-p").text('[' + this.turn_phase + '] ' + this.player.name + " at " + this.player.sprite.figure.anchor);
         },
+        /**
+         * Draws all game objects in the canvas.
+         * @public
+         * @function
+         * @param   {Context} ctx Canvas 2D context
+         * @return  none
+         */
         draw: function(ctx) {
             var i,
-                enemies_len;
+                actors_len;
             
             ctx.clearRect(0, 0, this.screen.width, this.screen.height);
-            this.player.draw(ctx);
-            for (i = 0, enemies_len = this.enemies.length; i < enemies_len; i += 1) {
-                this.enemies[i].draw(ctx);
+            
+            this.grid.draw(ctx);
+            for (i = 0, actors_len = this.actors.length; i < actors_len; i += 1) {
+                this.actors[i].draw(ctx);
             }
         },
+        /**
+         * Game loop. 
+         * <p>It is called periodically in order to update all game
+         * objects and draw them.
+         * @public
+         * @function
+         * @param   {Context} ctx Canvas 2D context
+         * @return  none
+         */
         loop: function(ctx) {
             this.update();
             this.draw(ctx);
         }
     };
     
+    /**
+     * Initializes all objects.
+     * @public
+     * @function
+     * @return  none
+     */
     var init = function() {
         var canvas  = document.getElementById("screen-canvas"),
             context = canvas.getContext("2d");
             
-        canvas.width  = game.screen.width;
-        canvas.height = game.screen.height;
-        game.init();
-        setInterval(function() {game.loop(context);}, game.loop_timeout);
-        addEventListener('keydown', game.doKeyDown, false);
-        addEventListener('keyup', game.doKeyUp, false);
+        canvas.width  = GAME.screen.width;
+        canvas.height = GAME.screen.height;
+        GAME.init();
+        setInterval(function() {GAME.loop(context);}, GAME.loop_timeout);
+        addEventListener('keydown', GAME.doKeyDown, false);
+        addEventListener('keyup', GAME.doKeyUp, false);
     };
     
+    /**
+     * 
+     */
     $(function() {
         init();
     });

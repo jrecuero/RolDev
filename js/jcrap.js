@@ -4,26 +4,32 @@
  */
 
 /**
- * Namespace object.
- * @namespace
+ * Framework Namespace.
+ * @namespace Framework namespace
  */
 var jcRap = {};
 
 /**
- * A function used to extend one class with another.
- * 
+ * Extends one class with another.
+ * @public
+ * @function
  * @param   {Object} subclass
  *          The inheriting class or subclass.
  * @param   {Object} baseclass
  *          The class from which to inherit.
- *          
- * @returns  none.         
+ * @return  none.         
  */
 jcRap.extend = function (subclass, baseclass) {
-    Inheritance = function() {};
-    Inheritance.prototype = baseclass.prototype;
+    /**
+     * Inheritance.
+     * @class Inheritance
+     * @description <p>This class is used in order to extend classes.
+     * @constructor
+     */
+    jcRap.Inheritance = function() {};
+    jcRap.Inheritance.prototype = baseclass.prototype;
     
-    subclass.prototype = new Inheritance();
+    subclass.prototype = new jcRap.Inheritance();
     subclass.prototype.constructor = subclass;
     subclass._baseConstructor      = baseclass;
     subclass._superClass           = baseclass.prototype;
@@ -31,10 +37,10 @@ jcRap.extend = function (subclass, baseclass) {
 
 /**
  * General purpose currying function.
- * 
- * @param   {function} fn   
+ * @public
+ * @function
+ * @param   {Function} fn   
  *          function to curry
- * 
  * @return  currying function
  */
 jcRap.schonfinkelize = function(fn) {
@@ -49,12 +55,12 @@ jcRap.schonfinkelize = function(fn) {
 
 /**
  * General purpose namespace.
- * 
+ * @public
+ * @function
  * @param   {string} name_space
  *          global namespace
  * @param   {string} ns_string
  *          new namespace object to be created
- * 
  * @return  new namespaced object
  */
 jcRap.namespace = function(name_space, ns_string) {
@@ -77,6 +83,7 @@ jcRap.namespace = function(name_space, ns_string) {
     return parent;
 };
 
+/*
 (function(global) {
     var Sandbox = function(modules, callback) {
         var i,
@@ -108,3 +115,4 @@ Sandbox(['ajax'], function(sandbox) {
         }
     });
 });
+*/
