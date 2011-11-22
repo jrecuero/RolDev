@@ -23,6 +23,7 @@ jcRap.extend = function (subclass, baseclass) {
     /**
      * Inheritance.
      * @class Inheritance
+     * @memberOf jcRap
      * @description <p>This class is used in order to extend classes.
      * @constructor
      */

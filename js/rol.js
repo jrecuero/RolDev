@@ -1,8 +1,5 @@
 /**
  * @author <a href="mailto:jose.recuero@gmail.com">Jose Carlos Recuero</a>
- */
-
-/**
  * @namespace Global Namespace placeholder
  */
 var rol = {};
@@ -119,11 +116,13 @@ var rol = {};
      * @property {int} CELL_SIZE Cell size
      * @property {int} cells_in_width Number of horizontal cells
      * @property {int} cells_in_height Number of vertical cells
+     * @property {Color} stroke_style Grid stroke color
      */
     var GRID = {
         CELL_SIZE: 20,
         cells_in_width: 0,
         cells_in_height:0,
+        stroke_style: "yellow",
         /**
          * Initializes GRID.
          * @public
@@ -151,7 +150,7 @@ var rol = {};
                 height = this.CELL_SIZE * this.cells_in_height,
                 x, y;
                 
-            ctx.strokeStyle = "yellow";
+            ctx.strokeStyle = this.stroke_style;
             ctx.beginPath();
             for (x = this.CELL_SIZE, y = 0; x < width; x += this.CELL_SIZE) {
                 ctx.moveTo(x, y);
@@ -182,6 +181,18 @@ var rol = {};
         this.x = x;
         this.y = y;
         return this;
+    };
+    
+    /**
+     * Checks if two points are equal.
+     * @public
+     * @function
+     * @param   {Point} point point to check if equals
+     * @return  <b>true</b> points are equal.
+     *          <p><b>false</b> points are not equal.
+     */
+    Point.prototype.equal = function(point) {
+        return ((this.x === point.x) && (this.y === point.y));
     };
     
     /**
@@ -451,6 +462,19 @@ var rol = {};
     };
     
     /**
+     * Sets sprite figure anchor to a new value.
+     * @public
+     * @function
+     * @param   {int} x new anchor x coordinate
+     * @param   {int} y new anchor y coordinate
+     * @return  none
+     */
+    Sprite.prototype.setOrigin = function(x, y) {
+        this.figure.anchor.x = x;
+        this.figure.anchor.y = y;
+    }
+    
+    /**
      * Gets sprite figure facing direction.
      * @public
      * @function
@@ -574,7 +598,9 @@ var rol = {};
      * @property {string} name Game object name
      * @property {Sprite} sprite Game object sprite
      * @property {boolean} visible Game object visible or hiden
-     * @property {boolean} solid Game object solid or not.=
+     * @property {boolean} solid Game object solid or not
+     * @property {int} x cell coordinate x
+     * @property {int} y cell coordinate y
      * @constructor
      * @param   {string} name
      *          game object name
@@ -585,7 +611,32 @@ var rol = {};
         this.sprite  = null;
         this.visible = true;
         this.solid   = true;
-    }
+        this.x       = 0;
+        this.y       = 0;
+    };
+    
+    /**
+     * Gets game object cell position.
+     * @public
+     * @function
+     * @return  {Point} cell point
+     */
+    GameObject.prototype.getCell = function() {
+        return new Point(this.x, this.y);
+    };
+    
+    /**
+     * Sets game object cell position.
+     * @public
+     * @function
+     * @param   {int} x cell x coordinate
+     * @param   {int} y cell y coordinate
+     * @return  none
+     */
+    GameObject.prototype.setCell = function(x, y) {
+        this.x = x;
+        this.y = y;
+    };
     
     /**
      * Gets game object sprite figure anchor.
@@ -596,6 +647,18 @@ var rol = {};
     GameObject.prototype.getOrigin = function() {
         return this.sprite && this.sprite.getOrigin();
     };
+    
+    /**
+     * Sets game object figure anchor to a new value.
+     * @public
+     * @function
+     * @param   {int} x new anchor x coordinate
+     * @param   {int} y new anchor y coordinate
+     * @return  none
+     */
+    GameObject.prototype.setOrigin = function(x, y) {
+        this.sprite.setOrigin(x, y);
+    }
     
     /**
      * Gets game object sprite figure facing direction.
@@ -650,6 +713,15 @@ var rol = {};
                 }
             }
         }
+/*       
+        for (i = 0; i < objects.length; i += 1) {
+            if (this !== objects[i]) {
+                if (this.getCell().equal(objects[i].getCell()) === true) {
+                    return objects[i];
+                }
+            }
+        }
+*/        
         return false;
     };
     
@@ -673,9 +745,6 @@ var rol = {};
      */    
     GameObject.prototype.draw = function(ctx) {
         this.sprite.draw(ctx);
-        if (this.bullet) {
-            this.bullet.draw(ctx);
-        }
     };
     
     /**
@@ -701,19 +770,22 @@ var rol = {};
      * @class Bullet object
      * @augments GameObject
      * @constructor
-     * @property {int} ratio bullet ratio
+     * @property {GameObject} owner bullet owner
      * @property {FACING} direction directin bullet travels
      * @param   {int} x 
      *          bullet x coordinate
      * @param   {int} y
      *          bullet y coordinate
+     * @param   {GameObject} owner
+     *          bullet owner
      * @param   {FACING} direction 
      *          direction bullet travels
      */
-    var Bullet = function(x, y, direction) {
+    var Bullet = function(x, y, owner, direction) {
         var ratio = 5;
-        
+
         Bullet._baseConstructor.call(this, "bullet");
+        this.owner     = owner;
         this.sprite    = new Sprite(new Circle(x, y, ratio), "black", "red");
         this.direction = direction;
         return this;
@@ -769,6 +841,30 @@ var rol = {};
     
     jcRap.extend(Actor, GameObject);
     
+    /**
+     * Actor gets damage.
+     * @public
+     * @function
+     * @param   {int} dmg damage value
+     * @return  none
+     * TODO - To be implemented.
+     */
+    Actor.prototype.damage = function(dmg) {
+        dmg = dmg || 0;
+    }
+    
+    /**
+     * Check if actor is alive.
+     * @public
+     * @function
+     * @return  <b>true</b> actor is alive.
+     *          <p><b>false</b> actor is not alive.
+     * TODO - to be implemented.
+     */
+    Actor.prototype.isAlive = function() {
+        return false;
+    }
+    
     
     /**
      * Hero game object.
@@ -817,19 +913,23 @@ var rol = {};
      * @property {Object} keys_down Keys pressed at any time
      * @property {Hero}   player Player {@link Hero} actor
      * @property {Array}  enemies Array of {@link Enemy}
+     * @property {Array} bullets Array of {@link Bullet}
      * @property {Array}  actors Arrays of {@link Actor}
      * @property {TURN_PHASE} turn_phase Game turn phase
      */
     var GAME = {
         screen: {
-            width:  200,
-            height: 200
+            x_cells: 20,
+            y_cells: 20,
+            width:  0,
+            height: 0
         },
         grid: GRID,
         loop_timeout: 10,
         keys_down: {},
         player: null,
         enemies: [],
+        bullets: [],
         actors: [],
         turn_phase: TURN_PHASE.NONE,
         /**
@@ -840,17 +940,42 @@ var rol = {};
         init: function() {
             var i;
             
+            this.screen.width  = GRID.CELL_SIZE * this.screen.x_cells;
+            this.screen.height = GRID.CELL_SIZE * this.screen.y_cells;
             this.grid.init(this.screen.width, this.screen.height);
             this.player = new Hero("Hero", new Sprite(new Pacman(10, 10, GRID.CELL_SIZE/2), "green", "blue"));
-            this.enemies.push(new Enemy("Goblin", new Sprite(new Rectangle(100, 100, GRID.CELL_SIZE, GRID.CELL_SIZE), "black", "yellow")),
-                              new Enemy("Orc",    new Sprite(new Rectangle(160, 160, GRID.CELL_SIZE, GRID.CELL_SIZE), "black", "yellow")));
-            this.turn_phase = TURN_PHASE.START;
-            
+            this.turn_phase = TURN_PHASE.START;            
             this.addActor(this.player);
-            for (i = 0; i < this.enemies.length; i += 1) {
-                this.addActor(this.enemies[i]);
-            }
+            this.createEnemy();
         },
+        /**
+         * Creates a new enemy at a random position inside the grid.
+         * @public
+         * @function
+         * @return  none
+         */
+        createEnemy: function() {
+            var x, y,
+                sprite,
+                enemy,
+                empty_cell = false;
+                
+            x = Math.floor(Math.random() * this.grid.cells_in_width) * GRID.CELL_SIZE;
+            y = Math.floor(Math.random() * this.grid.cells_in_width) * GRID.CELL_SIZE;
+            sprite = new Sprite(new Rectangle(x, y, GRID.CELL_SIZE, GRID.CELL_SIZE), "black", "yellow")
+            enemy  = new Enemy("Goblin", sprite);
+            do {
+                if (enemy.checkCollision(x, y, this.actors) === false) {
+                    empty_cell = true;
+                } else {
+                    x = Math.floor(Math.random() * this.grid.cells_in_width) * GRID.CELL_SIZE;
+                    y = Math.floor(Math.random() * this.grid.cells_in_width) * GRID.CELL_SIZE;
+                    enemy.setOrigin(x, y);
+                }
+            } while(!empty_cell) 
+            this.enemies.push(enemy);
+            this.addActor(enemy);
+        },        
         /**
          * Key Down event handler.
          * @public
@@ -957,11 +1082,10 @@ var rol = {};
          * @function
          * @return  none
          */
-        shoot: function() {
-            var player = this.player,
-                player_origin = player.getOrigin();
-                
-            player.bullet = new Bullet(player_origin.x, player_origin.y, player.getFacing());            
+        shoot: function(actor) {
+            var origin = actor.getOrigin(),
+                bullet = new Bullet(origin.x, origin.y, actor, actor.getFacing());            
+            this.addBullet(bullet);
         },
         /**
          * Updates player.
@@ -988,17 +1112,36 @@ var rol = {};
          * @return  none
          */
         updateBullet: function() {
-            var bullet = this.player.bullet,
-                bullet_origin = bullet.getOrigin(),
-                collision;
-            bullet.moveFrame();
-            collision = bullet.checkCollision(bullet_origin.x, bullet_origin.y, this.actors);
-            if (collision === true) {
-                this.turn_phase = TURN_PHASE.ENEMY_START;
-                console.log("Bullet out of screen");
-            } else if (collision !== false) {
-                this.turn_phase = TURN_PHASE.ENEMY_START;
-                console.log("Bullet hit " + collision.name);
+            var i,
+                len,
+                remove_bullets = [];
+                
+            for (i = 0, len = this.bullets.length; i < len; i += 1) {
+                var bullet = this.bullets[i],
+                    origin = bullet.getOrigin(),
+                    collision;
+                
+                bullet.moveFrame();
+                collision = bullet.checkCollision(origin.x, origin.y, this.actors);
+                if (collision === true) {
+                    console.log("Bullet out of screen");
+                    this.turn_phase = TURN_PHASE.ENEMY_START;
+                    remove_bullets.push(bullet);
+                } else if (collision !== false) {
+                    console.log("Bullet hit " + collision.name);
+                    this.turn_phase = TURN_PHASE.ENEMY_START;
+                    remove_bullets.push(bullet);
+                    collision.damage(null);
+                    if (!collision.isAlive()) {
+                        this.removeActor(collision);
+                    }
+                }
+                
+                if (remove_bullets.length > 0) {
+                    for (i = 0, len = remove_bullets.length; i < len; i += 1) {
+                        this.removeBullet(remove_bullets[i]);
+                    }
+                }
             }
         },
         /**
@@ -1027,6 +1170,43 @@ var rol = {};
             for (i = 0, len = this.actors.length; i < len; i += 1) {
                 if (actor === this.actors[i]) {
                     this.actors.splice(i, 1);
+                    break;
+                }
+            }
+            
+            for (i = 0, len = this.enemies.length; i < len; i += 1) {
+                if (actor === this.enemies[i]) {
+                    this.enemies.splice(i, 1);
+                    break;
+                }
+            }
+        },
+        /**
+         * Adds a bullet.
+         * @public
+         * @function
+         * @param   {Bullet} bullet bullet to be added
+         * @return  none
+         */
+        addBullet: function(bullet) {
+            this.bullets.push(bullet);
+            this.addActor(bullet);
+        },
+        /**
+         * Removes a bullet
+         * @public
+         * @function
+         * @param   {Bullet} bullet bullet to be removed
+         * @return  none
+         */
+        removeBullet: function(bullet) {
+            var len,
+                i;
+                
+            for (i = 0, len = this.bullets.length; i < len; i += 1) {
+                if (bullet === this.bullets[i]) {
+                    this.bullets.splice(i, 1);
+                    this.removeActor(bullet);
                     return;
                 }
             }
@@ -1040,20 +1220,22 @@ var rol = {};
         update: function() {        
             switch (this.turn_phase) {
                 case TURN_PHASE.START:
+                    if (this.enemies.length == 0) {
+                        this.createEnemy();
+                    }
                     this.turn_phase = TURN_PHASE.PLAYER_START;
                     break;
                 case TURN_PHASE.PLAYER_START:
                     this.updatePlayer();
                     break;
                 case TURN_PHASE.PLAYER_ACT:
-                    this.shoot();
+                    this.shoot(this.player);
                     this.turn_phase = TURN_PHASE.PLAYER_WAIT_END;
                     break;
                 case TURN_PHASE.PLAYER_WAIT_END:
                     this.updateBullet();
                     break;
                 case TURN_PHASE.ENEMY_START:
-                    this.player.bullet = null;
                     this.updateEnemy();
                     this.turn_phase = TURN_PHASE.END;
                     break;
@@ -1073,12 +1255,12 @@ var rol = {};
          */
         draw: function(ctx) {
             var i,
-                actors_len;
+                len;
             
             ctx.clearRect(0, 0, this.screen.width, this.screen.height);
             
             this.grid.draw(ctx);
-            for (i = 0, actors_len = this.actors.length; i < actors_len; i += 1) {
+            for (i = 0, len = this.actors.length; i < len; i += 1) {
                 this.actors[i].draw(ctx);
             }
         },
@@ -1107,9 +1289,9 @@ var rol = {};
         var canvas  = document.getElementById("screen-canvas"),
             context = canvas.getContext("2d");
             
+        GAME.init();
         canvas.width  = GAME.screen.width;
         canvas.height = GAME.screen.height;
-        GAME.init();
         setInterval(function() {GAME.loop(context);}, GAME.loop_timeout);
         addEventListener('keydown', GAME.doKeyDown, false);
         addEventListener('keyup', GAME.doKeyUp, false);
