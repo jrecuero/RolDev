@@ -321,37 +321,6 @@ var rol = {};
         ctx.arc(x, y, this.ratio, Math.PI * values[1][0], Math.PI * values[1][1], false);
     };
     
-    
-    var Bullet = function(x, y, direction) {
-        Bullet._baseConstructor.call(this, x, y, 5);
-        this.direction = direction;
-        return this;
-    };
-    
-    jcRap.extend(Bullet, Circle);
-    
-    Bullet.prototype.moveFrame = function() {
-        var bullet_speed = GRID.CELL_SIZE;
-        
-        switch (this.direction) {
-        case FACING.UP:
-            this.anchor.y -= bullet_speed;
-            break;
-        case FACING.DOWN:
-            this.anchor.y += bullet_speed;
-            break;
-        case FACING.LEFT:
-            this.anchor.x -= bullet_speed;
-            break;
-        case FACING.RIGHT:
-            this.anchor.x += bullet_speed;
-            break;
-        case FACING.NONE:
-        default:
-            break;
-        }
-    };
-
 
     /**
      * Sprite class.
@@ -493,8 +462,28 @@ var rol = {};
     };    
     
     GameObject.prototype.checkCollision = function(x, y, objects) {
-        return this.sprite.checkCollision(x, y, objects);
+        var i;
+
+        if ((x >= game.screen.width) || (x <= 0)) {
+            return true;
+        }
+        if ((y >= game.screen.height) || (y <= 0)) {
+            return true;
+        }
+
+        for (i = 0; i < objects.length; i += 1) {
+            if (this !== objects[i]) {
+                if (objects[i].sprite.isInside(x, y) === true) {
+                    return objects[i];
+                }
+            }
+        }
+        return false;
     };
+    
+    GameObject.prototype.moveFrame = function() {
+        return this.sprite && this.sprite.moveFrame();
+    }
     
     /**
      * Draw a game object
@@ -506,8 +495,8 @@ var rol = {};
      */    
     GameObject.prototype.draw = function(ctx) {
         this.sprite.draw(ctx);
-        if (this.bullet_sprite) {
-            this.bullet_sprite.draw(ctx);
+        if (this.bullet) {
+            this.bullet.draw(ctx);
         }
     };
     
@@ -526,6 +515,43 @@ var rol = {};
      */        
     GameObject.prototype.moveTo = function(x, y, relative) {
         return this.sprite.moveTo(x, y, relative);
+    };
+
+
+    var Bullet = function(x, y, direction) {
+        var ratio = 5;
+        
+        Bullet._baseConstructor.call(this, "bullet");
+        this.sprite    = new Sprite(new Circle(x, y, ratio), "black", "red");
+        this.direction = direction;
+        return this;
+    };
+    
+    jcRap.extend(Bullet, GameObject);
+    
+    Bullet.prototype.moveFrame = function() {
+        var bullet_speed = GRID.CELL_SIZE,
+            origin = this.getOrigin();
+        
+        switch (this.direction) {
+        case FACING.UP:
+            origin.y -= bullet_speed;
+            break;
+        case FACING.DOWN:
+            origin.y += bullet_speed;
+            break;
+        case FACING.LEFT:
+            origin.x -= bullet_speed;
+            break;
+        case FACING.RIGHT:
+            origin.x += bullet_speed;
+            break;
+        case FACING.NONE:
+        default:
+            break;
+        }
+        
+        this.moveTo(origin.x, origin.y, false);
     };
       
       
@@ -604,7 +630,7 @@ var rol = {};
         keys_down: {},
         player: null,
         enemies: [],
-        actor_sprites: [],
+        actors: [],
         turn_phase: TURN_PHASE.NONE,
         init: function() {
             var i;
@@ -615,9 +641,9 @@ var rol = {};
                               new Enemy("Orc",    new Sprite(new Rectangle(160, 160, GRID.CELL_SIZE, GRID.CELL_SIZE), "black", "yellow")));
             this.turn_phase = TURN_PHASE.START;
             
-            this.actor_sprites.push(this.player.sprite);
+            this.addActor(this.player);
             for (i = 0; i < this.enemies.length; i += 1) {
-                this.actor_sprites.push(this.enemies[i].sprite);
+                this.addActor(this.enemies[i]);
             }
         },
         doKeyDown: function(evt) {
@@ -669,7 +695,7 @@ var rol = {};
                 this.turn_phase = TURN_PHASE.ENEMY_START;
             }            
             
-            if (this.player.checkCollision(new_player_x, new_player_y, this.actor_sprites) !== false) {
+            if (this.player.checkCollision(new_player_x, new_player_y, this.actors) !== false) {
                 new_player_x = null;
                 new_player_y = null;
             }
@@ -684,7 +710,7 @@ var rol = {};
                 var enemy_origin = this.enemies[i].getOrigin();
                 var new_x = enemy_origin.x - GRID.CELL_SIZE / 2 ;
                 var new_y = enemy_origin.y - GRID.CELL_SIZE / 2;
-                if (this.enemies[i].checkCollision(new_x, new_y, this.actor_sprites) === false) {
+                if (this.enemies[i].checkCollision(new_x, new_y, this.actors) === false) {
                     new_x -= GRID.CELL_SIZE / 2;
                     new_y -= GRID.CELL_SIZE / 2;
                 } else {
@@ -699,7 +725,7 @@ var rol = {};
             var player = this.player,
                 player_origin = player.getOrigin();
                 
-            player.bullet_sprite = new Sprite(new Bullet(player_origin.x, player_origin.y, player.getFacing()), "black", "red");
+            player.bullet = new Bullet(player_origin.x, player_origin.y, player.getFacing());
         },
         updatePlayer: function() {
             this.movePlayer();
@@ -708,17 +734,31 @@ var rol = {};
             this.moveEnemy();
         },
         updateBullet: function() {
-            var bullet_sprite = this.player.bullet_sprite,
-                bullet_origin = bullet_sprite.getOrigin(),
+            var bullet = this.player.bullet,
+                bullet_origin = bullet.getOrigin(),
                 collision;
-            bullet_sprite.moveFrame();
-            collision = bullet_sprite.checkCollision(bullet_origin.x, bullet_origin.y, this.actor_sprites);
+            bullet.moveFrame();
+            collision = bullet.checkCollision(bullet_origin.x, bullet_origin.y, this.actors);
             if (collision === true) {
                 this.turn_phase = TURN_PHASE.ENEMY_START;
                 console.log("Bullet out of screen");
             } else if (collision !== false) {
                 this.turn_phase = TURN_PHASE.ENEMY_START;
                 console.log("Bullet hit " + collision.name);
+            }
+        },
+        addActor: function(actor) {
+            this.actors.push(actor);
+        },
+        removeActor: function(actor) {
+            var len,
+                i;
+            
+            for (i = 0, len = this.actors.length; i < len; i += 1) {
+                if (actor === this.actors[i]) {
+                    this.actors.splice(i, 1);
+                    return;
+                }
             }
         },
         update: function() {        
@@ -737,7 +777,7 @@ var rol = {};
                     this.updateBullet();
                     break;
                 case TURN_PHASE.ENEMY_START:
-                    this.player.bullet_sprite = null;
+                    this.player.bullet = null;
                     this.updateEnemy();
                     this.turn_phase = TURN_PHASE.END;
                     break;
