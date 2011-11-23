@@ -40,17 +40,18 @@ var rol = {};
      * @property {int} RIGHT face rightwards
      */
     var FACING = {
-        NONE:  0,        
-        UP:    1, 
-        DOWN:  2, 
-        LEFT:  3, 
-        RIGHT: 4  
+        NONE:  "NONE",        
+        UP:    "UP", 
+        DOWN:  "DOWN", 
+        LEFT:  "LEFT", 
+        RIGHT: "RIGHT"  
     };
 
     /**
      * Enumeration that identifies what key was pressed and which should be
      * the facing direction for that keycode.
      * @class Key pressed
+     * @property {Object} NONE
      * @property {Object} UP
      * @property {Object} DOWN
      * @property {Object} LEFT
@@ -58,25 +59,99 @@ var rol = {};
      * @property {Object} SPACE
      */
     var KEY = {
+        /**
+         * @class
+         * @property {int} code Value is 0.
+         * @property {FACING} facing Value is {@link FACING.NONE}.
+         * @property {boolean} move_key Value is false. It is not a movement
+         *              keystroke.
+         */
+        NONE: {
+            code: 0,
+            facing: FACING.NONE,
+            move_key: false,
+            move: function() {
+                return null;
+            }
+        },
+        /**
+         * @class
+         * @property {int} code Value is 38.
+         * @property {FACING} facing Value is {@link FACING.UP}.
+         * @property {boolean} move_key Value is true. It is a movement
+         *              keystroke.
+         */
         UP: {
             code: 38,
-            facing: FACING.UP
+            facing: FACING.UP,
+            move_key: true,
+            move: function(point, step) {
+                point.y -= step;
+                return point;
+            }
         },
+        /**
+         * @class
+         * @property {int} code Value is 40.
+         * @property {FACING} facing Value is {@link FACING.DOWN}.
+         * @property {boolean} move_key Value is true. It is a movement
+         *              keystroke.
+         */
         DOWN: {
             code: 40,
-            facing: FACING.DOWN
+            facing: FACING.DOWN,
+            move_key: true,
+            move: function(point, step) {
+                point.y += step;
+                return point;
+            }
         },
+        /**
+         * @class
+         * @property {int} code Value is 37.
+         * @property {FACING} facing Value is {@link FACING.LEFT}.
+         * @property {boolean} move_key Value is true. It is a movement
+         *              keystroke.
+         */
         LEFT: {
-            code:37,
-            facing: FACING.LEFT
+            code: 37,
+            facing: FACING.LEFT,
+            move_key: true,
+            move: function(point, step) {
+                point.x -= step;
+                return point;
+            }
         },
+        /**
+         * @class
+         * @property {int} code Value is 39.
+         * @property {FACING} facing Value is {@link FACING.RIGHT}.
+         * @property {boolean} move_key Value is true. It is a movement
+         *              keystroke.
+         */
         RIGHT: {
             code: 39,
-            facing: FACING.RIGHT
+            facing: FACING.RIGHT,
+            move_key: true,
+            move: function(point, step) {
+                point.x += step;
+                return point;
+            }
         },
+        /**
+         * @class
+         * @property {int} code Value is 32.
+         * @property {FACING} facing Value is {@link FACING.SPACE}.
+         * @property {boolean} move_key Value is false. It is not a movement
+         *              keystroke.
+         */
         SPACE: {
             code: 32,
-            facing: FACING.NONE
+            facing: FACING.NONE,
+            move_key: false,
+            move: function() {
+                return null;
+            }
         }
     };
     
@@ -222,12 +297,13 @@ var rol = {};
      * Checks if two points are equal.
      * @public
      * @function
-     * @param   {Point} point point to check if equals
+     * @param   {x} x point coordinate x.
+     * @param   {y} y point coordinate y.
      * @return  <b>true</b> points are equal.
      *          <p><b>false</b> points are not equal.
      */
-    Point.prototype.equal = function(point) {
-        return ((this.x === point.x) && (this.y === point.y));
+    Point.prototype.equal = function(x, y) {
+        return ((this.x === x) && (this.y === y));
     };
     
     /**
@@ -669,7 +745,7 @@ var rol = {};
         }
         for (i = 0; i < objects.length; i += 1) {
             if (this !== objects[i]) {
-                if (this.getCell().equal(objects[i].getCell()) === true) {
+                if (objects[i].getCell().equal(x, y) === true) {
                     return objects[i];
                 }
             }
@@ -875,7 +951,7 @@ var rol = {};
             height: 0
         },
         grid: null,
-        loop_timeout: 10,
+        loop_timeout: 30,
         keys_down: {},
         player: null,
         enemies: [],
@@ -954,8 +1030,7 @@ var rol = {};
          * Key Down event handler.
          * @public
          * @event
-         * @param   {Event} evt
-         *          event
+         * @param   {Event} evt event
          * @return  none
          */
         doKeyDown: function(evt) {
@@ -965,15 +1040,53 @@ var rol = {};
          * Key Up event handler.
          * @public
          * @event
-         * @param   {Event} evt
-         *          event
+         * @param   {Event} evt event
          * @return  none
          */
         doKeyUp: function(evt) {
             delete GAME.keys_down[evt.keyCode];
         },
         /**
+         * Process a move key pressed by the player.
+         * @public
+         * @function
+         * @param   {KEY} key key to test.
+         * @return  <b>true</b> if there is a change in the state.
+         *          <p><b>false</b> if there is not any change.
+         */
+        processKey: function(key) {
+            delete this.keys_down[key.code];
+            if (KEY.SPACE.code === key.code) {
+                this.turn_phase = TURN_PHASE.PLAYER_ACT;
+            }
+            return null;
+        },
+        /**
+         * Process a move key pressed by the player.
+         * @public
+         * @function
+         * @param   {KEY} key key pressed.
+         * @param   {int} cell player cell.
+         * @return  new cell postion after key has processed.
+         */
+        processMoveKey: function(key, cell) {
+            var step = 1;
+            this.player.setFacing(key.facing);
+            delete this.keys_down[key.code];
+            return key.move(cell, step);
+        },
+        /**
          * Moves player.
+         * @description <p>This method process all key pressed by the user.
+         *              <p>All those keys are stored in {@link GAME.keys_down}
+         *              and they are inserted by events {@link GAME.doKeyUp}
+         *              and {@link GAME.doKeyDown}.
+         *              <p>It checks if any possible key is in that object
+         *              and process every keystroke calling 
+         *              {@link GAME.processMoveKey} if the key is a movement
+         *              key or {@link GAME.processKey} for any other keystroke.
+         *              <p>Move could be accumulated if more than one keystrokes
+         *              are found in the buffer object.
          * @public
          * @function
          * @return  none
@@ -981,34 +1094,22 @@ var rol = {};
         movePlayer: function() {
             var player_cell = this.player.getCell(),
                 move = false,
-                step = 1;
+                k;
             
-            if (KEY.UP.code in this.keys_down) {
-                player_cell.y -= step;
-                this.player.setFacing(KEY.UP.facing);
-                delete this.keys_down[KEY.UP.code];
-                move = true;
-            }
-            if (KEY.DOWN.code in this.keys_down) {
-                player_cell.y += step;
-                this.player.setFacing(KEY.DOWN.facing);
-                delete this.keys_down[KEY.DOWN.code];
-                move = true;
-            }
-            if (KEY.LEFT.code in this.keys_down) {
-                player_cell.x -= step;
-                this.player.setFacing(KEY.LEFT.facing);
-                delete this.keys_down[KEY.LEFT.code];
-                move = true;
-            }
-            if (KEY.RIGHT.code in this.keys_down) {
-                player_cell.x += step;
-                this.player.setFacing(KEY.RIGHT.facing);
-                delete this.keys_down[KEY.RIGHT.code];
-                move = true;
-            }
-            if (KEY.SPACE.code in this.keys_down) {
-                this.turn_phase = TURN_PHASE.PLAYER_ACT;
+            for (k in KEY) {
+                var key = KEY[k];
+                if (this.keys_down.hasOwnProperty(key.code)) {
+                     // Player cell is reused, it allows to add more than one
+                     // key pressed move at the same time, because all changes
+                     // are accumulated.
+                    player_cell = key.move_key ? this.processMoveKey(key, player_cell) : this.processKey(key);
+
+                     // If there was a movement key pressed, then move state
+                     // should stay, in any other case, it should check if
+                     // there was any change in the cell in order to proceed
+                     // with a movement.
+                    move = move || (player_cell !== null);
+                }
             }
             
             if (move) {
@@ -1034,7 +1135,7 @@ var rol = {};
             
             for (i = 0, enemies_len = this.enemies.length; i < enemies_len; i += 1) {
                 var enemy_cell = this.enemies[i].getCell(),
-                    new_cell   = new Point(enemy_cell.x - 1, enemy_cell.y - 1);
+                    new_cell   = new Point(enemy_cell.x, enemy_cell.y + 1);
                                            
                 if (this.enemies[i].checkCollision(new_cell.x, new_cell.y, this.actors) !== false) {
                     new_cell.x = null;
@@ -1052,8 +1153,13 @@ var rol = {};
          */
         shoot: function(actor) {
             var cell = actor.getCell(),
+                bullet;
+                
+            cell = KEY[actor.facing].move(actor.getCell(), 1);
+            if (cell) {
                 bullet = new Bullet(cell.x, cell.y, actor, actor.facing);            
-            this.addBullet(bullet);
+                this.addBullet(bullet);
+            }
         },
         /**
          * Updates player.
