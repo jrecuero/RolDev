@@ -4,6 +4,11 @@
  * @version 1.0.0
  */
 
+/*
+ * @requires $
+ */
+/*globals $ */
+
 /**
  * Framework Namespace.
  * @namespace Framework namespace
@@ -98,12 +103,12 @@ jcRap.Framework = {};
  * @param   {string} filename   Javascript filename.
  */
 jcRap.Framework.include = function (filename) {
-    var body   = document.getElementsByTagName('body').item(0),
-        script = document.createElement('script');
+//    var body   = document.getElementsByTagName('body'),
+    var script = document.createElement('script');
     
     script.src  = filename;
     script.type = 'text/javascript';
-    body.appendChild(script);
+    $('body').append(script);
 };
 
 /**
