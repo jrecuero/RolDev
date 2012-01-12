@@ -1,5 +1,5 @@
 /**
- * @fileOverview    <b>rol.js</b> file all information related with the game.
+ * @fileOverview    <b>rol-engine.js</b> file with the game engine.
  * @author <a href="mailto:jose.recuero@gmail.com">Jose Carlos Recuero</a>
  * @version 1.0.0
  */
@@ -156,63 +156,6 @@ ROL.GameObject.prototype.moveTo = function(x, y, relative) {
 
 
 /**
- * Bullet game object.
- * @class Bullet object
- * @augments ROL.GameObject
- * @constructor
- * @property {ROL.GameObject} owner bullet owner
- * @property {ROL.Facing} direction directin bullet travels
- * @param   {int} x bullet x coordinate
- * @param   {int} y bullet y coordinate
- * @param   {ROL.GameObject} owner bullet owner
- * @param   {ROL.Facing} direction direction bullet travels
- */
-ROL.Bullet = function(x, y, owner, direction) {
-    var ratio = 5,
-        figure;
-
-    ROL.Bullet._base_constructor.call(this, "bullet");
-    this.owner       = owner;
-    figure           = new ROL.Circle(x, y, ratio, ROL.Game.grid.cell_size);
-    this.sprite      = new ROL.Sprite(figure);
-    this.sprite.fill = "red";
-    this.direction   = direction;
-    this.setCell(x, y);
-    return this;
-};
-
-jcRap.Framework.extend(ROL.Bullet, ROL.GameObject);
-
-/**
- * @methodOf
- */
-ROL.Bullet.prototype.moveFrame = function() {
-    var bullet_speed = 1,
-        cell = this.getCell();
-
-    switch (this.direction) {
-    case ROL.Facing.UP:
-        cell.y -= bullet_speed;
-        break;
-    case ROL.Facing.DOWN:
-        cell.y += bullet_speed;
-        break;
-    case ROL.Facing.LEFT:
-        cell.x -= bullet_speed;
-        break;
-    case ROL.Facing.RIGHT:
-        cell.x += bullet_speed;
-        break;
-    case ROL.Facing.NONE:
-    default:
-        break;
-    }
-
-    this.moveTo(cell.x, cell.y, false);
-};
-
-
-/**
  * Actor game object.
  * @class Actor game object
  * @augments ROL.GameObject
@@ -255,55 +198,22 @@ ROL.Actor.prototype.isAlive = function() {
 
 
 /**
- * Hero game object.
- * @class Hero game object
- * @augments ROL.Actor
- * @constructor
- * @param   {string} name hero name
- * @param   {ROL.Sprite} sprite sprite that represents the hero
- * @return  this
- */
-ROL.Hero = function(name, sprite) {
-    ROL.Hero._base_constructor.call(this, name, sprite);
-    return this;
-};
-
-// ROL.Hero extends ROL.Actor
-jcRap.Framework.extend(ROL.Hero, ROL.Actor);
-
-
-/**
- * Enemy game object.
- * @class Enemy game object
- * @augments ROL.Actor
- * @constructor
- * @param   {string} name enemy name
- * @param   {ROL.Sprite} sprite sprite that represents the enemy
- * @return  this
- */
-ROL.Enemy = function(name, sprite) {
-    ROL.Enemy._base_constructor.call(this, name, sprite);
-    return this;
-};
-
-// ROL.Enemy extends ROL.Actor
-jcRap.Framework.extend(ROL.Enemy, ROL.Actor);
-
-
-/**
  * Main game object
  * @class Main Game Object
- * @property {Object} screen Screen Width and Height
- * @property {ROL.Grid}   grid Game grid
- * @property {int}    loop_timeout Game timeout between updates
+ * @property {Object} screen    Screen Width and Height
+ * @property {ROL.Grid} grid    Game grid
+ * @property {int} loop_timeout Game timeout between updates
  * @property {Object} keys_down Keys pressed at any time
- * @property {ROL.Hero}   player Player {@link ROL.Hero} actor
- * @property {Array}  enemies Array of {@link ROL.Enemy}
- * @property {Array} bullets Array of {@link ROL.Bullet}
- * @property {Array}  actors Arrays of {@link ROL.Actor}
+ * @property {ROL.Actor} player Player {@link ROL.Actor} actor
+ * @property {Array} enemies    Array of {@link ROL.Actor}
+ * @property {Array} bullets    Array of {@link ROL.Bullet}
+ * @property {Array} actors     Arrays of {@link ROL.Actor}
  * @property {ROL.TurnPhase} turn_phase Game turn phase
  */
 ROL.Game = {
+    /* FIXME - ROL.Game should contain only information related with the 
+     * engine, but not with rol-game script. It should be abstract enough.
+     */
     screen: {
         cell_size: 20,
         x_cells: 20,
@@ -340,19 +250,21 @@ ROL.Game = {
      * @return  {ROL.Actor} new player
      */
     createPlayer: function() {
-        var cell,
-            figure,
-            sprite,
-            player;
-
-        cell   = new ROL.Point(0, 0);
-        figure = new ROL.Pacman(cell.x, cell.y, this.grid.cell_size/2, this.grid.cell_size);
-        sprite = new ROL.Sprite(figure);
-        sprite.stroke = "green";
-        sprite.fill   = "blue";
-        player = new ROL.Hero("Hero", sprite);
-        player.setCell(cell.x, cell.y);
-        return player;
+        /* FIXME - This should not be part of the engine. */
+//        var cell,
+//            figure,
+//            sprite,
+//            player;
+//
+//        cell   = new ROL.Point(0, 0);
+//        figure = new ROL.Pacman(cell.x, cell.y, this.grid.cell_size/2, this.grid.cell_size);
+//        sprite = new ROL.Sprite(figure);
+//        sprite.stroke = "green";
+//        sprite.fill   = "blue";
+//        player = new ROL.Hero("Hero", sprite);
+//        player.setCell(cell.x, cell.y);
+//        return player;
+        return null;
     },
     /**
      * Creates a new enemy at a random position inside the grid.
@@ -361,6 +273,7 @@ ROL.Game = {
      * @return  none
      */
     createEnemy: function() {
+        /* FIXME - This should not be part of the engine. */
         var cell,
             figure,
             sprite,
@@ -516,6 +429,7 @@ ROL.Game = {
      * @return  none
      */
     shoot: function(actor) {
+        /* FIXME - This should not be part of the engine. */
         var cell = actor.getCell(),
             bullet;
 
@@ -550,6 +464,7 @@ ROL.Game = {
      * @return  none
      */
     updateBullet: function() {
+        /* FIXME - This should not be part of the engine. */
         var i,
             len,
             remove_bullets = [],
@@ -629,6 +544,7 @@ ROL.Game = {
      * @return  none
      */
     addBullet: function(bullet) {
+        /* FIXME - This should not be part of the engine. */
         this.bullets.push(bullet);
         this.addActor(bullet);
     },
@@ -640,6 +556,7 @@ ROL.Game = {
      * @return  none
      */
     removeBullet: function(bullet) {
+        /* FIXME - This should not be part of the engine. */
         var len,
             i;
 
@@ -719,29 +636,3 @@ ROL.Game = {
         this.draw(ctx);
     }
 };
-
-/**
- * Initializes all objects.
- * @public
- * @function
- * @return  none
- */
-ROL.init = function() {
-    var canvas  = document.getElementById("screen-canvas"),
-        context = canvas.getContext("2d");
-
-    ROL.Game.init();
-    canvas.width  = ROL.Game.screen.width;
-    canvas.height = ROL.Game.screen.height;
-    setInterval(function() {ROL.Game.loop(context);}, ROL.Game.loop_timeout);
-    addEventListener('keydown', ROL.Game.doKeyDown, false);
-    addEventListener('keyup', ROL.Game.doKeyUp, false);
-};
-
-/**
- * 
- */
-$(function() {
-    ROL.init();
-});
-    
