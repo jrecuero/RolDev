@@ -66,7 +66,9 @@ ROL.GameObject.prototype.getCell = function() {
 ROL.GameObject.prototype.setCell = function(x, y) {
     this.x = x;
     this.y = y;
-    this.sprite && this.sprite.setOrigin(x, y);
+    if (this.sprite) {
+        this.sprite.setOrigin(x, y);
+    }
 };
 
 /**
@@ -79,7 +81,9 @@ ROL.GameObject.prototype.setCell = function(x, y) {
  */
 ROL.GameObject.prototype.setFacing = function(facing) {
     this.facing = facing;
-    this.sprite && (this.sprite.facing = facing);
+    if (this.sprite) {
+         this.sprite.facing = facing;
+    }
 };    
 
 /**
@@ -162,10 +166,12 @@ ROL.GameObject.prototype.moveTo = function(x, y, relative) {
  * @constructor
  * @param   {string} name actor name
  * @param   {ROL.Sprite} sprite sprite that represents the hero
+ * @param   {boolean} is_player actor is a player or not.
  * @return  this
  */
-ROL.Actor = function(name, sprite) {
+ROL.Actor = function(name, sprite, is_player) {
     ROL.Actor._base_constructor.call(this, name);
+    this.is_player = is_player !== undefined ? is_player : false;
     this.sprite = sprite;
     return this;
 };
@@ -206,14 +212,10 @@ ROL.Actor.prototype.isAlive = function() {
  * @property {Object} keys_down Keys pressed at any time
  * @property {ROL.Actor} player Player {@link ROL.Actor} actor
  * @property {Array} enemies    Array of {@link ROL.Actor}
- * @property {Array} bullets    Array of {@link ROL.Bullet}
  * @property {Array} actors     Arrays of {@link ROL.Actor}
  * @property {ROL.TurnPhase} turn_phase Game turn phase
  */
 ROL.Game = {
-    /* FIXME - ROL.Game should contain only information related with the 
-     * engine, but not with rol-game script. It should be abstract enough.
-     */
     screen: {
         cell_size: 20,
         x_cells: 20,
@@ -226,8 +228,9 @@ ROL.Game = {
     keys_down: {},
     player: null,
     enemies: [],
-    bullets: [],
     actors: [],
+    key_actions: {},
+    update_actions: {},
     turn_phase: ROL.TurnPhase.NONE,
     /**
      * Initializes game object
@@ -238,10 +241,35 @@ ROL.Game = {
         this.screen.width  = this.screen.cell_size * this.screen.x_cells;
         this.screen.height = this.screen.cell_size * this.screen.y_cells;
         this.grid = new ROL.Grid(this.screen.cell_size, this.screen.width, this.screen.height);
-        this.player = this.createPlayer();
         this.turn_phase = ROL.TurnPhase.START;            
-        this.addActor(this.player);
+        this.createPlayer();
         this.createEnemy();
+    },
+    registerActor: function (actor) {
+        if (actor.is_player) {
+            this.player = actor;
+        } else {
+            this.enemies.push(actor);
+        }
+        this.addActor(actor);
+    },
+    _registerAction: function(engine_attr, field, action, params) {
+        if (this[engine_attr].hasOwnProperty(field) === false) {
+            this[engine_attr][field] = {};
+        }
+        this[engine_attr][field][action] = {
+            callback: action,
+            params:   params
+        };
+    },
+    registerKeyAction: function(key, action, params) {
+        this._registerAction('key_actions', key, action, params);
+    },
+    registerUpdateAction: function(state, action, params) {
+        this._registerAction('update_actions', state, action, params);
+    },
+    updateTurnPhase: function(turn_phase) {
+        this.turn_phase = turn_phase;
     },
     /**
      * Create a new player.
@@ -250,20 +278,6 @@ ROL.Game = {
      * @return  {ROL.Actor} new player
      */
     createPlayer: function() {
-        /* FIXME - This should not be part of the engine. */
-//        var cell,
-//            figure,
-//            sprite,
-//            player;
-//
-//        cell   = new ROL.Point(0, 0);
-//        figure = new ROL.Pacman(cell.x, cell.y, this.grid.cell_size/2, this.grid.cell_size);
-//        sprite = new ROL.Sprite(figure);
-//        sprite.stroke = "green";
-//        sprite.fill   = "blue";
-//        player = new ROL.Hero("Hero", sprite);
-//        player.setCell(cell.x, cell.y);
-//        return player;
         return null;
     },
     /**
@@ -273,33 +287,12 @@ ROL.Game = {
      * @return  none
      */
     createEnemy: function() {
-        /* FIXME - This should not be part of the engine. */
-        var cell,
-            figure,
-            sprite,
-            enemy,
-            empty_cell = false;
-
-        cell = new ROL.Point(Math.floor(Math.random() * this.screen.x_cells),
-                         Math.floor(Math.random() * this.screen.y_cells));
-        figure = new ROL.Rectangle(cell.x, cell.y, this.grid.cell_size, this.grid.cell_size, this.grid.cell_size);
-        sprite = new ROL.Sprite(figure);
-        sprite.stroke = "black";
-        sprite.fill   = "red";
-        enemy  = new ROL.Enemy("Goblin", sprite);
-        enemy.setCell(cell.x, cell.y);
-        do {
-            if (enemy.checkCollision(cell.x, cell.y, this.actors) === false) {
-                empty_cell = true;
-            } else {
-                cell = new ROL.Point(Math.floor(Math.random() * this.screen.x_cells),
-                                 Math.floor(Math.random() * this.screen.y_cells));
-                enemy.setCell(cell.c, cell.y);
-            }
-        } while(!empty_cell);
-        this.enemies.push(enemy);
-        this.addActor(enemy);
-    },        
+        return null;
+    },
+    checkCollision: function(actor, x, y) {
+        var collision = actor.checkCollision(x, y, this.actors);
+        return collision;
+    },
     /**
      * Key Down event handler.
      * @public
@@ -329,9 +322,17 @@ ROL.Game = {
      *          <p><b>false</b> if there is not any change.
      */
     processKey: function(key) {
+        var i,
+            action;
+        
         delete this.keys_down[key.code];
-        if (ROL.Key.SPACE.code === key.code) {
-            this.turn_phase = ROL.TurnPhase.PLAYER_ACT;
+        if (this.key_actions.hasOwnProperty(key.code)) {
+            for (i in this.key_actions[key.code]) {
+                if (this.key_actions[key.code].hasOwnProperty(i)) {
+                    action = this.key_actions[key.code][i];
+                    action.callback(action.params);
+                }
+            }
         }
         return null;
     },
@@ -372,18 +373,20 @@ ROL.Game = {
             key;
 
         for (k in ROL.Key) {
-            key = ROL.Key[k];
-            if (this.keys_down.hasOwnProperty(key.code)) {
-                 // Player cell is reused, it allows to add more than one
-                 // key pressed move at the same time, because all changes
-                 // are accumulated.
-                player_cell = key.move_key ? this.processMoveKey(key, player_cell) : this.processKey(key);
+            if (ROL.Key.hasOwnProperty(k)) {
+                key = ROL.Key[k];
+                if (this.keys_down.hasOwnProperty(key.code)) {
+                     // Player cell is reused, it allows to add more than one
+                     // key pressed move at the same time, because all changes
+                     // are accumulated.
+                    player_cell = key.move_key ? this.processMoveKey(key, player_cell) : this.processKey(key);
 
-                 // If there was a movement key pressed, then move state
-                 // should stay, in any other case, it should check if
-                 // there was any change in the cell in order to proceed
-                 // with a movement.
-                move = move || (player_cell !== null);
+                     // If there was a movement key pressed, then move state
+                     // should stay, in any other case, it should check if
+                     // there was any change in the cell in order to proceed
+                     // with a movement.
+                    move = move || (player_cell !== null);
+                }
             }
         }
 
@@ -423,23 +426,6 @@ ROL.Game = {
         }
     },
     /**
-     * Player shooting.
-     * @public
-     * @function
-     * @return  none
-     */
-    shoot: function(actor) {
-        /* FIXME - This should not be part of the engine. */
-        var cell = actor.getCell(),
-            bullet;
-
-        cell = ROL.Key[actor.facing].move(actor.getCell(), 1);
-        if (cell) {
-            bullet = new ROL.Bullet(cell.x, cell.y, actor, actor.facing);            
-            this.addBullet(bullet);
-        }
-    },
-    /**
      * Updates player.
      * @public
      * @function
@@ -456,48 +442,6 @@ ROL.Game = {
      */
     updateEnemy: function() {
         this.moveEnemy();
-    },
-    /**
-     * Update player bullet.
-     * @public
-     * @function
-     * @return  none
-     */
-    updateBullet: function() {
-        /* FIXME - This should not be part of the engine. */
-        var i,
-            len,
-            remove_bullets = [],
-            bullet,
-            cell,
-            collision;
-
-        for (i = 0, len = this.bullets.length; i < len; i += 1) {
-            bullet = this.bullets[i];
-            cell   = bullet.getCell();
-
-            bullet.moveFrame();
-            collision = bullet.checkCollision(cell.x, cell.y, this.actors);
-            if (collision === true) {
-                console.log("Bullet out of screen");
-                this.turn_phase = ROL.TurnPhase.ENEMY_START;
-                remove_bullets.push(bullet);
-            } else if (collision !== false) {
-                console.log("Bullet hit " + collision.name);
-                this.turn_phase = ROL.TurnPhase.ENEMY_START;
-                remove_bullets.push(bullet);
-                collision.damage(null);
-                if (!collision.isAlive()) {
-                    this.removeActor(collision);
-                }
-            }
-
-            if (remove_bullets.length > 0) {
-                for (i = 0, len = remove_bullets.length; i < len; i += 1) {
-                    this.removeBullet(remove_bullets[i]);
-                }
-            }
-        }
     },
     /**
      * Adds a new actor.
@@ -536,37 +480,19 @@ ROL.Game = {
             }
         }
     },
-    /**
-     * Adds a bullet.
-     * @public
-     * @function
-     * @param   {ROL.Bullet} bullet bullet to be added
-     * @return  none
-     */
-    addBullet: function(bullet) {
-        /* FIXME - This should not be part of the engine. */
-        this.bullets.push(bullet);
-        this.addActor(bullet);
-    },
-    /**
-     * Removes a bullet
-     * @public
-     * @function
-     * @param   {ROL.Bullet} bullet bullet to be removed
-     * @return  none
-     */
-    removeBullet: function(bullet) {
-        /* FIXME - This should not be part of the engine. */
-        var len,
-            i;
-
-        for (i = 0, len = this.bullets.length; i < len; i += 1) {
-            if (bullet === this.bullets[i]) {
-                this.bullets.splice(i, 1);
-                this.removeActor(bullet);
-                return;
+    _processUpdate: function(state) {
+        var i,
+            action;
+        
+        if (this.update_actions.hasOwnProperty(state)) {
+            for (i in this.update_actions[state]) {
+                if (this.update_actions[state].hasOwnProperty(i)) {
+                    action = this.update_actions[state][i];
+                    action.callback(action.params);
+                }
             }
         }
+        return null;
     },
     /**
      * Updates game object.
@@ -586,11 +512,10 @@ ROL.Game = {
                 this.updatePlayer();
                 break;
             case ROL.TurnPhase.PLAYER_ACT:
-                this.shoot(this.player);
-                this.turn_phase = ROL.TurnPhase.PLAYER_WAIT_END;
+                this._processUpdate(ROL.TurnPhase.PLAYER_ACT);
                 break;
             case ROL.TurnPhase.PLAYER_WAIT_END:
-                this.updateBullet();
+                this._processUpdate(ROL.TurnPhase.PLAYER_WAIT_END);
                 break;
             case ROL.TurnPhase.ENEMY_START:
                 this.updateEnemy();

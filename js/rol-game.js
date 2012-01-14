@@ -87,7 +87,7 @@ ROL.Bullet.prototype.moveFrame = function() {
  * @return  this
  */
 ROL.Hero = function(name, sprite) {
-    ROL.Hero._base_constructor.call(this, name, sprite);
+    ROL.Hero._base_constructor.call(this, name, sprite, true);
     return this;
 };
 
@@ -105,7 +105,7 @@ jcRap.Framework.extend(ROL.Hero, ROL.Actor);
  * @return  this
  */
 ROL.Enemy = function(name, sprite) {
-    ROL.Enemy._base_constructor.call(this, name, sprite);
+    ROL.Enemy._base_constructor.call(this, name, sprite, false);
     return this;
 };
 
@@ -139,11 +139,157 @@ ROL.init = function() {
         sprite.fill   = "blue";
         player = new ROL.Hero("Hero", sprite);
         player.setCell(cell.x, cell.y);
+        this.registerActor(player);
         return player;
+    };
+    
+    ROL.Game.createEnemy = function () {
+        var cell,
+            figure,
+            sprite,
+            enemy,
+            empty_cell = false;
+
+        cell = new ROL.Point(Math.floor(Math.random() * this.screen.x_cells),
+                         Math.floor(Math.random() * this.screen.y_cells));
+        figure = new ROL.Rectangle(cell.x, cell.y, this.grid.cell_size, this.grid.cell_size, this.grid.cell_size);
+        sprite = new ROL.Sprite(figure);
+        sprite.stroke = "black";
+        sprite.fill   = "red";
+        enemy  = new ROL.Enemy("Goblin", sprite);
+        enemy.setCell(cell.x, cell.y);
+        do {
+            if (enemy.checkCollision(cell.x, cell.y, this.actors) === false) {
+                empty_cell = true;
+            } else {
+                cell = new ROL.Point(Math.floor(Math.random() * this.screen.x_cells),
+                                 Math.floor(Math.random() * this.screen.y_cells));
+                enemy.setCell(cell.c, cell.y);
+            }
+        } while(!empty_cell);
+        this.registerActor(enemy);
+        return enemy;
     };
     
     ROL.Game.init();
     
+    ROL.Game.registerKeyAction(ROL.Key.SPACE.code, 
+                               function(game) {
+                                    game.updateTurnPhase(ROL.TurnPhase.PLAYER_ACT);
+                               }, 
+                               ROL.Game);
+    
+    ROL.Game.registerUpdateAction(ROL.TurnPhase.PLAYER_ACT, 
+                                  function(game){
+                                    game.rol.shoot(game.player);
+                                    game.updateTurnPhase(ROL.TurnPhase.PLAYER_WAIT_END);
+                                  }, 
+                                  ROL.Game);
+                                  
+    ROL.Game.registerUpdateAction(ROL.TurnPhase.PLAYER_WAIT_END, 
+                                  function(game){
+                                    game.rol.updateBullet();
+                                  }, 
+                                  ROL.Game);
+
+    ROL.Game.rol = {};
+    /**
+     * @property {Array} bullets    Array of {@link ROL.Bullet}
+     */
+    ROL.Game.rol.bullets = [];
+    /**
+     * Adds a bullet.
+     * @public
+     * @function
+     * @param   {ROL.Bullet} bullet bullet to be added
+     * @return  none
+     */
+    ROL.Game.rol.addBullet = function(bullet) {
+        var game = ROL.Game;
+        
+        game.rol.bullets.push(bullet);
+        game.addActor(bullet);
+    };
+    /**
+     * Removes a bullet
+     * @public
+     * @function
+     * @param   {ROL.Bullet} bullet bullet to be removed
+     * @return  none
+     */
+    ROL.Game.rol.removeBullet = function(bullet) {
+        var game = ROL.Game,
+            len,
+            i;
+
+        for (i = 0, len = game.rol.bullets.length; i < len; i += 1) {
+            if (bullet === game.rol.bullets[i]) {
+                game.rol.bullets.splice(i, 1);
+                game.removeActor(bullet);
+                return;
+            }
+        }
+    };
+    /**
+     * Player shooting.
+     * @public
+     * @function
+     * @return  none
+     */
+    ROL.Game.rol.shoot =  function(actor) {
+        var game = ROL.Game,
+            cell = actor.getCell(),
+            bullet;
+
+        cell = ROL.Key[actor.facing].move(actor.getCell(), 1);
+        if (cell) {
+            bullet = new ROL.Bullet(cell.x, cell.y, actor, actor.facing);            
+            game.rol.addBullet(bullet);
+        }
+    };
+    /**
+     * Update player bullet.
+     * @public
+     * @function
+     * @return  none
+     */
+    ROL.Game.rol.updateBullet = function() {
+        var game = ROL.Game,
+            i,
+            len,
+            remove_bullets = [],
+            bullet,
+            cell,
+            collision;
+
+        for (i = 0, len = game.rol.bullets.length; i < len; i += 1) {
+            bullet = game.rol.bullets[i];
+            cell   = bullet.getCell();
+
+            bullet.moveFrame();
+            collision = game.checkCollision(bullet, cell.x, cell.y);
+            if (collision === true) {
+                console.log("Bullet out of screen");
+                game.updateTurnPhase(ROL.TurnPhase.ENEMY_START);
+                remove_bullets.push(bullet);
+            } else if (collision !== false) {
+                console.log("Bullet hit " + collision.name);
+                game.updateTurnPhase(ROL.TurnPhase.ENEMY_START);
+                remove_bullets.push(bullet);
+                collision.damage(null);
+                if (!collision.isAlive()) {
+                    game.removeActor(collision);
+                }
+            }
+
+            if (remove_bullets.length > 0) {
+                for (i = 0, len = remove_bullets.length; i < len; i += 1) {
+                    game.rol.removeBullet(remove_bullets[i]);
+                }
+            }
+        }
+    };
+
     canvas.width  = ROL.Game.screen.width;
     canvas.height = ROL.Game.screen.height;
     setInterval(function() {ROL.Game.loop(context);}, ROL.Game.loop_timeout);

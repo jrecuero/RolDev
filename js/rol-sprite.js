@@ -236,34 +236,43 @@ ROL.Pacman.prototype.draw = function(ctx, facing) {
 /**
  * Sprite.
  * @class Sprite
- * @property {ROL.Figure} figure Sprite figure
+ * @property {Object} image Sprite image
  * @property {Object} stroke Sprite stroke color
  * @property {Object} fill Sprite fill color
  * @property {ROL.Facing} facing Sprite facing direction
  * @constructor
- * @param   {ROL.Figure} figure figure to be used as the sprite
+ * @param   {Object} image  Image to be used as the sprite.
+ * @param   {int} x         Image x position.
+ * @param   {int} y         Image y position.
  * @return  this
  */
-ROL.Sprite = function(figure) {
-    this.figure    = figure;
-    this.stroke    = "black";
-    this.fill      = "white";
-    this.facing    = ROL.Facing.NONE;
+ROL.Sprite = function(image, x, y) {
+    this.image  = image;
+    if (image instanceof ROL.Figure) {
+        this.stroke = "black";
+        this.fill   = "white";
+        this.origin = image.origin;
+    } else if ((x !== undefined) && (y !== undefined)) {
+        this.origin = new ROL.Point(x, y);
+    } else {
+        this.origin = new ROL.Point(0, 0);
+    }
+    this.facing = ROL.Facing.NONE;
     return this;
 };
 
 /**
- * Gets sprite figure origin.
+ * Gets sprite image origin.
  * @public
  * @function
- * @return {ROL.Point} figure origin
+ * @return {ROL.Point} image origin
  */
 ROL.Sprite.prototype.getOrigin = function() {
-    return this.figure.origin;
+    return this.origin;
 };
 
 /**
- * Sets sprite figure origin to a new value.
+ * Sets sprite image origin to a new value.
  * @public
  * @function
  * @param   {int} x new origin x coordinate
@@ -271,8 +280,10 @@ ROL.Sprite.prototype.getOrigin = function() {
  * @return  none
  */
 ROL.Sprite.prototype.setOrigin = function(x, y) {
-    this.figure.origin.x = x;
-    this.figure.origin.y = y;
+    this.origin.x = x;
+    this.origin.y = y;
+    this.image.origin.x = x;
+    this.image.origin.y = y;
 };
 
 /**
@@ -282,8 +293,8 @@ ROL.Sprite.prototype.setOrigin = function(x, y) {
  * @return  none.
  */
 ROL.Sprite.prototype.moveFrame = function() {
-    if (this.figure && (typeof this.figure.moveFrame === 'function')) {
-        this.figure.moveFrame();
+    if (this.image && (typeof this.image.moveFrame === 'function')) {
+        this.image.moveFrame();
     }
 };
 
@@ -295,12 +306,16 @@ ROL.Sprite.prototype.moveFrame = function() {
  * @return  none
  */    
 ROL.Sprite.prototype.draw = function(ctx) {
-    ctx.strokeStyle = typeof this.stroke ==='function' ? this.stroke() : this.stroke;
-    ctx.fillStyle   = typeof this.fill === 'function'  ? this.fill()   : this.fill;
-    ctx.beginPath();
-    this.figure.draw(ctx, this.facing);
-    ctx.fill();
-    ctx.stroke();
+    if (this.image) {
+        if (this.image instanceof ROL.Figure) {
+            ctx.strokeStyle = typeof this.stroke ==='function' ? this.stroke() : this.stroke;
+            ctx.fillStyle   = typeof this.fill === 'function'  ? this.fill()   : this.fill;
+            ctx.beginPath();
+            this.image.draw(ctx, this.facing);
+            ctx.fill();
+            ctx.stroke();
+        }
+    }
 };
 
 /**
@@ -315,7 +330,9 @@ ROL.Sprite.prototype.draw = function(ctx) {
  * @return  this
  */    
 ROL.Sprite.prototype.moveTo = function(x, y, relative) {
-    this.figure.moveTo(x, y, relative);
+    if (this.image && (typeof this.image.moveTo === 'function')) {
+        this.image.moveTo(x, y, relative);
+    }
     return this;
 };
 
@@ -329,7 +346,10 @@ ROL.Sprite.prototype.moveTo = function(x, y, relative) {
  *          <p><b>false</b> if not.          
  */
 ROL.Sprite.prototype.isInside = function(x, y) {
-    return this.figure.isInside(x, y);
+    if (this.image && (typeof this.image.isInside === 'function')) {
+        return this.image.isInside(x, y);
+    }
+    return false;
 };
 
 /**
