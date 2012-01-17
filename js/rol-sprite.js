@@ -354,7 +354,6 @@ ROL.Sprite.prototype.isInside = function(x, y) {
 
 /**
  * Checks if sprite collides with any other sprite.
- * @deprecated Method to be updated with new grid feature.
  * @public
  * @function
  * @param   {int} x coordinate x for checking collision
@@ -376,7 +375,7 @@ ROL.Sprite.prototype.checkCollision = function(x, y, sprites) {
 
     for (i = 0; i < sprites.length; i += 1) {
         if (this !== sprites[i]) {
-            if (sprites[i].isInside(x, y) === true) {
+            if (sprites[i].getOrigin().equal(x, y) === true) {
                 return sprites[i];
             }
         }

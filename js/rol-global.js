@@ -27,12 +27,16 @@ var ROL = {};
  * @description <p>Every game object should have a role in the application,
  *              it could belong to the player party, it could be an
  *              enemy, ...
- * @property {int} NONE no role
- * @property {int} PLAYER belongs to the player party
- * @property {int} ENEMY belongs to the enemy party
- * @property {int} ALLY belongs to the ally party
- * @property {int} NPC non-playable character
- * @property {int} VENDOR vendor character
+ * @property {int} NONE         no role.
+ * @property {int} PLAYER       belongs to the player party.
+ * @property {int} ENEMY        belongs to the enemy party.
+ * @property {int} ALLY         belongs to the ally party.
+ * @property {int} NPC          non-playable character.
+ * @property {int} VENDOR       vendor character.
+ * @property {int} STATIC_OBJ   static background object.
+ * @property {int} DYNAMIC_OBJ  dynamic background object.
+ * @property {int} ALL          all roles to be handled, and total number of
+ *                              roles.
  */
 ROL.Role = {
     NONE: 0,
@@ -40,7 +44,10 @@ ROL.Role = {
     ENEMY: 2,
     ALLY: 3,
     NPC: 4,
-    VENDOR: 5
+    VENDOR: 5,
+    STATIC_OBJ: 6,
+    DYNAMIC_OBJ: 7,
+    ALL: 8
 };
 
 

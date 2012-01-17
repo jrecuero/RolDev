@@ -166,13 +166,14 @@ ROL.GameObject.prototype.moveTo = function(x, y, relative) {
  * @constructor
  * @param   {string} name actor name
  * @param   {ROL.Sprite} sprite sprite that represents the hero
- * @param   {boolean} is_player actor is a player or not.
+ * @param   {ROL.Role} role     actor role.
  * @return  this
  */
-ROL.Actor = function(name, sprite, is_player) {
+ROL.Actor = function(name, sprite, role) {
     ROL.Actor._base_constructor.call(this, name);
-    this.is_player = is_player !== undefined ? is_player : false;
     this.sprite = sprite;
+    this.role   = role !== undefined ? role : ROL.Role.STATIC_OBJ;
+    this.is_player = this.role  === ROL.Role.PLAYER ? true : false;
     return this;
 };
 
@@ -200,6 +201,74 @@ ROL.Actor.prototype.damage = function(dmg) {
  */
 ROL.Actor.prototype.isAlive = function() {
     return false;
+};
+
+
+/**
+ * Background static game object.
+ * @class Background static game object
+ * @augments ROL.Actor
+ * @constructor
+ * @param   {string} name actor name
+ * @param   {ROL.Sprite} sprite sprite that represents the hero
+ * @return  this
+ */
+ROL.BackgroundObject = function(name, sprite) {
+    ROL.BackgroundObject._base_constructor.call(this, name, ROL.Role.STATIC_OBJ);
+    this.sprite = sprite;
+    return this;
+};
+
+jcRap.Framework.extend(ROL.BackgroundObject, ROL.Actor);
+
+
+
+/**
+ * Ammunition game object.
+ * @class Ammunition object
+ * @augments ROL.GameObject
+ * @constructor
+ * @property {ROL.GameObject} owner Ammunition owner
+ * @property {ROL.Facing} direction Direction ammunition travels
+ * @param   {string} name           Ammunition name
+ * @param   {ROL.GameObject} owner  Ammunition owner
+ * @param   {ROL.Facing} direction  Direction bullet travels
+ */
+ROL.Ammo = function(name, owner, direction) {
+    ROL.Ammo._base_constructor.call(this, name);
+    this.owner       = owner;
+    this.direction   = direction;
+    return this;
+};
+
+jcRap.Framework.extend(ROL.Ammo, ROL.GameObject);
+
+/**
+ * @methodOf
+ */
+ROL.Ammo.prototype.moveFrame = function() {
+    var ammo_speed = 1,
+        cell = this.getCell();
+
+    switch (this.direction) {
+    case ROL.Facing.UP:
+        cell.y -= ammo_speed;
+        break;
+    case ROL.Facing.DOWN:
+        cell.y += ammo_speed;
+        break;
+    case ROL.Facing.LEFT:
+        cell.x -= ammo_speed;
+        break;
+    case ROL.Facing.RIGHT:
+        cell.x += ammo_speed;
+        break;
+    case ROL.Facing.NONE:
+    default:
+        break;
+    }
+
+    this.moveTo(cell.x, cell.y, false);
 };
 
 
@@ -246,12 +315,14 @@ ROL.Game = {
         this.createEnemy();
     },
     registerActor: function (actor) {
-        if (actor.is_player) {
+        var role = actor.role;
+        
+        if (role === ROL.Role.PLAYER) {
             this.player = actor;
-        } else {
+        } else if (role === ROL.Role.ENEMY) {
             this.enemies.push(actor);
         }
-        this.addActor(actor);
+        this._addActor(actor);
     },
     _registerAction: function(engine_attr, field, action, params) {
         if (this[engine_attr].hasOwnProperty(field) === false) {
@@ -402,30 +473,6 @@ ROL.Game = {
         }            
     },
     /**
-     * Moves all enemies.
-     * @public
-     * @function
-     * @return  none
-     */
-    moveEnemy: function() {
-        var i,
-            enemies_len,
-            enemy_cell,
-            new_cell;
-
-        for (i = 0, enemies_len = this.enemies.length; i < enemies_len; i += 1) {
-            enemy_cell = this.enemies[i].getCell();
-            new_cell   = new ROL.Point(enemy_cell.x, enemy_cell.y + 1);
-
-            if (this.enemies[i].checkCollision(new_cell.x, new_cell.y, this.actors) !== false) {
-                new_cell.x = null;
-                new_cell.y = null;
-            }
-
-            this.enemies[i].moveTo(new_cell.x, new_cell.y, false);
-        }
-    },
-    /**
      * Updates player.
      * @public
      * @function
@@ -435,15 +482,6 @@ ROL.Game = {
         this.movePlayer();
     },
     /**
-     * Updates all enemies.
-     * @public
-     * @funcion
-     * @return  none
-     */
-    updateEnemy: function() {
-        this.moveEnemy();
-    },
-    /**
      * Adds a new actor.
      * @public
      * @function
@@ -451,7 +489,7 @@ ROL.Game = {
      *          new actor to add
      * @return  none
      */
-    addActor: function(actor) {
+    _addActor: function(actor) {
         this.actors.push(actor);
     },
     /**
@@ -462,7 +500,7 @@ ROL.Game = {
      *          actor to remove
      * @return  none
      */
-    removeActor: function(actor) {
+    _removeActor: function(actor) {
         var len,
             i;
 
@@ -506,7 +544,7 @@ ROL.Game = {
                 if (this.enemies.length === 0) {
                     this.createEnemy();
                 }
-                this.turn_phase = ROL.TurnPhase.PLAYER_START;
+                this.updateTurnPhase(ROL.TurnPhase.PLAYER_START);
                 break;
             case ROL.TurnPhase.PLAYER_START:
                 this.updatePlayer();
@@ -517,12 +555,23 @@ ROL.Game = {
             case ROL.TurnPhase.PLAYER_WAIT_END:
                 this._processUpdate(ROL.TurnPhase.PLAYER_WAIT_END);
                 break;
+            case ROL.TurnPhase.PLAYER_END:
+                this.updateTurnPhase(ROL.TurnPhase.ENEMY_START);
+                break;
             case ROL.TurnPhase.ENEMY_START:
-                this.updateEnemy();
-                this.turn_phase = ROL.TurnPhase.END;
+                this.updateTurnPhase(ROL.TurnPhase.ENEMY_ACT);
+                break;
+            case ROL.TurnPhase.ENEMY_ACT:
+                this._processUpdate(ROL.TurnPhase.ENEMY_ACT);
+                break;
+            case ROL.TurnPhase.ENEMY_WAIT_END:
+                this._processUpdate(ROL.TurnPhase.ENEMY_WAIT_END);
+                break;
+            case ROL.TurnPhase.ENEMY_END:
+                this.updateTurnPhase(ROL.TurnPhase.END);
                 break;
             case ROL.TurnPhase.END:
-                this.turn_phase = ROL.TurnPhase.START;
+                this.updateTurnPhase(ROL.TurnPhase.START);
                 break;
         }
 
