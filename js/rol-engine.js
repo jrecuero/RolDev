@@ -98,22 +98,22 @@ ROL.GameObject.prototype.setFacing = function(facing) {
  *          <p><b>false</b> if it doesn't collide inside the canvas.
  */
 ROL.GameObject.prototype.checkCollision = function(x, y, objects) {
-    var i;
+    var i,
+        result = new ROL.CellStatData();
 
-    if ((x >= ROL.Game.screen.x_cells) || (x < 0)) {
-        return true;
-    }
-    if ((y >= ROL.Game.screen.y_cells) || (y < 0)) {
-        return true;
+    if ((x >= ROL.Game.screen.x_cells) || (x < 0) ||
+        (y >= ROL.Game.screen.y_cells) || (y < 0)) {
+        result.status = ROL.CellStatus.OUT_OF_BOUNDS;
     }
     for (i = 0; i < objects.length; i += 1) {
         if (this !== objects[i]) {
             if (objects[i].getCell().equal(x, y) === true) {
-                return objects[i];
+                result.status = ROL.CellStatus.BUSY;
+                result.object = objects[i];
             }
         }
     }
-    return false;
+    return result;
 };
 
 /**
@@ -171,13 +171,19 @@ ROL.GameObject.prototype.moveTo = function(x, y, relative) {
  */
 ROL.Actor = function(name, sprite, role) {
     ROL.Actor._base_constructor.call(this, name);
-    this.sprite = sprite;
-    this.role   = role !== undefined ? role : ROL.Role.STATIC_OBJ;
-    this.is_player = this.role  === ROL.Role.PLAYER ? true : false;
+    this.sprite    = sprite;
+    this.role      = role !== undefined ? role : ROL.Role.STATIC_OBJ;
+    this.live      = 0;
+    this.live_now  = 0;
     return this;
 };
 
 jcRap.Framework.extend(ROL.Actor, ROL.GameObject);
+
+ROL.Actor.prototype.setLive = function(live) {
+    this.live     = live;
+    this.live_now = live;
+};
 
 /**
  * Actor gets damage.
@@ -188,7 +194,10 @@ jcRap.Framework.extend(ROL.Actor, ROL.GameObject);
  * TODO - To be implemented.
  */
 ROL.Actor.prototype.damage = function(dmg) {
-    dmg = dmg || 0;
+    this.live_now -= dmg || 0;
+    if (this.live_now < 0) {
+        this.live_now = 0;
+    }
 };
 
 /**
@@ -200,7 +209,7 @@ ROL.Actor.prototype.damage = function(dmg) {
  * TODO - to be implemented.
  */
 ROL.Actor.prototype.isAlive = function() {
-    return false;
+    return (this.live_now > 0);
 };
 
 
@@ -238,6 +247,8 @@ ROL.Ammo = function(name, owner, direction) {
     ROL.Ammo._base_constructor.call(this, name);
     this.owner       = owner;
     this.direction   = direction;
+    this.dmg         = 0;
+    this.steps       = Number.MAX_VALUE;
     return this;
 };
 
@@ -268,7 +279,7 @@ ROL.Ammo.prototype.moveFrame = function() {
         break;
     }
 
-    this.moveTo(cell.x, cell.y, false);
+    return cell;
 };
 
 
@@ -309,13 +320,14 @@ ROL.Game = {
     init: function() {
         this.screen.width  = this.screen.cell_size * this.screen.x_cells;
         this.screen.height = this.screen.cell_size * this.screen.y_cells;
-        this.grid = new ROL.Grid(this.screen.cell_size, this.screen.width, this.screen.height);
+        this.grid = new ROL.Grid(this.screen.cell_size, this.screen.x_cells, this.screen.y_cells);
         this.turn_phase = ROL.TurnPhase.START;            
         this.createPlayer();
         this.createEnemy();
     },
-    registerActor: function (actor) {
-        var role = actor.role;
+    registerActor: function(actor) {
+        var role = actor.role,
+            cell = actor.getCell();
         
         if (role === ROL.Role.PLAYER) {
             this.player = actor;
@@ -323,6 +335,18 @@ ROL.Game = {
             this.enemies.push(actor);
         }
         this._addActor(actor);
+        this.grid.setObjectInCell(cell.x, cell.y, actor);
+    },
+    unregisterActor: function(actor) {
+        var cell,
+            found = this._removeActor(actor);
+        
+        if (found) {
+            cell = actor.getCell();
+            this.grid.clearObjectInCell(cell.x, cell.y);
+        }
+        
+        return found;
     },
     _registerAction: function(engine_attr, field, action, params) {
         if (this[engine_attr].hasOwnProperty(field) === false) {
@@ -361,8 +385,9 @@ ROL.Game = {
         return null;
     },
     checkCollision: function(actor, x, y) {
-        var collision = actor.checkCollision(x, y, this.actors);
-        return collision;
+//        var collision = actor.checkCollision(x, y, this.actors);
+//        return collision;
+        return this.grid.checkObjectInCell(x, y, actor);
     },
     /**
      * Key Down event handler.
@@ -421,6 +446,14 @@ ROL.Game = {
         delete this.keys_down[key.code];
         return key.move(cell, step);
     },
+    moveActor: function(actor, x, y) {
+        var cell = actor.getCell();        
+        x = (x === null) ? cell.x : x;
+        y = (y === null) ? cell.y : y;
+        this.grid.clearObjectInCell(cell.x, cell.y);
+        actor.moveTo(x, y, false);
+        this.grid.setObjectInCell(x, y, actor);
+    },
     /**
      * Moves player.
      * @description <p>This method process all key pressed by the user.
@@ -441,7 +474,8 @@ ROL.Game = {
         var player_cell = this.player.getCell(),
             move = false,
             k,
-            key;
+            key,
+            result;
 
         for (k in ROL.Key) {
             if (ROL.Key.hasOwnProperty(k)) {
@@ -463,13 +497,14 @@ ROL.Game = {
 
         if (move) {
             this.turn_phase = ROL.TurnPhase.ENEMY_START;
-
-            if (this.player.checkCollision(player_cell.x, player_cell.y, this.actors) !== false) {
+            
+            result = this.player.checkCollision(player_cell.x, player_cell.y, this.actors);
+            if (result.status !== ROL.CellStatus.EMPTY) {
                 player_cell.x = null;
                 player_cell.y = null;
             }
 
-            this.player.moveTo(player_cell.x, player_cell.y, false);
+            this.moveActor(this.player, player_cell.x, player_cell.y);
         }            
     },
     /**
@@ -502,21 +537,27 @@ ROL.Game = {
      */
     _removeActor: function(actor) {
         var len,
-            i;
+            i,
+            found = false;
 
         for (i = 0, len = this.actors.length; i < len; i += 1) {
             if (actor === this.actors[i]) {
                 this.actors.splice(i, 1);
+                found = true;
                 break;
             }
         }
 
-        for (i = 0, len = this.enemies.length; i < len; i += 1) {
-            if (actor === this.enemies[i]) {
-                this.enemies.splice(i, 1);
-                break;
+        if (found) {
+            for (i = 0, len = this.enemies.length; i < len; i += 1) {
+                if (actor === this.enemies[i]) {
+                    this.enemies.splice(i, 1);
+                    break;
+                }
             }
         }
+        
+        return found;
     },
     _processUpdate: function(state) {
         var i,
@@ -576,7 +617,7 @@ ROL.Game = {
         }
 
         $("#position-p").text('[' + this.turn_phase + '] ' + 
-            this.player.name + " at " + this.player.getCell());
+            this.player.name + ' (' + this.player.live_now + ') at ' + this.player.getCell());
     },
     /**
      * Draws all game objects in the canvas.

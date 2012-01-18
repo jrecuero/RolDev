@@ -180,6 +180,7 @@ jcRap.Framework.schonfinkelize = function (fn) {
  *          global namespace
  * @param   {string} ns_string
  *          new namespace object to be created
+ * @type    {Object}         
  * @return  new namespaced object
  */
 jcRap.Framework.namespace = function (name_space, ns_string) {
@@ -200,6 +201,27 @@ jcRap.Framework.namespace = function (name_space, ns_string) {
         parent = parent[parts[i]];
     }
     return parent;
+};
+/**
+ * @function
+ * @description Creates a 2-multidimensional array.
+ * @param   {int} x_len First dimesion length.
+ * @param   {int} y_len Second dimesion length.
+ * @type    {Array}
+ * @return  New array created.
+ */
+jcRap.Framework.createArray = function (x_len, y_len) {
+    var x,
+        y,
+        a = [];
+    
+    for (x = 0; x < x_len; x += 1) {
+        a[x] = [];
+        for (y = 0; y < y_len; y += 1) {
+            a[x][y] = null;
+        }
+    }
+    return a;
 };
 
 

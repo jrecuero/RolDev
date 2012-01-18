@@ -70,6 +70,7 @@ ROL.Hero = function(game, name) {
             return sprite;
         }()), ROL.Role.PLAYER);
     this.setCell(cell.x, cell.y);
+    this.setLive(100);
     
     return this;
 };
@@ -94,7 +95,8 @@ ROL.Enemy = function(game, name) {
     ROL.Enemy._base_constructor.call(this, name, (function() {
             var figure,
                 sprite,
-                empty_cell = false;
+                empty_cell = false,
+                result;
 
             cell = new ROL.Point(Math.floor(Math.random() * game.screen.x_cells),
                                  Math.floor(Math.random() * game.screen.y_cells));
@@ -103,7 +105,8 @@ ROL.Enemy = function(game, name) {
             sprite.stroke = "black";
             sprite.fill   = "red";
             do {
-                if (enemy.checkCollision(cell.x, cell.y, game.actors) === false) {
+                result = enemy.checkCollision(cell.x, cell.y, game.actors);
+                if (result.status === ROL.CellStatus.EMPTY) {
                     empty_cell = true;
                 } else {
                     cell = new ROL.Point(Math.floor(Math.random() * game.screen.x_cells),
@@ -113,6 +116,7 @@ ROL.Enemy = function(game, name) {
             return sprite;
         }()), ROL.Role.ENEMY);
     this.setCell(cell.x, cell.y);
+    this.setLive(10);
     return this;
 };
 
@@ -183,7 +187,9 @@ ROL.init = function() {
             move  = true,
             shoot = false,
             facing = null,
-            bullet;
+            bullet,
+            status,
+            result;
 
         player_cell = game.player.getCell();
         
@@ -223,18 +229,25 @@ ROL.init = function() {
             }
 
             if (move) {
-                if (enemy.checkCollision(new_cell.x, new_cell.y, game.actors) !== false) {
+                result = enemy.checkCollision(new_cell.x, new_cell.y, game.actors);
+                if (result.status !== ROL.CellStatus.EMPTY) {
                     new_cell.x = null;
                     new_cell.y = null;
                 }
 
-                enemy.moveTo(new_cell.x, new_cell.y, false);
+                game.moveActor(enemy, new_cell.x, new_cell.y);
             } else {
                 new_cell = ROL.Key[facing].move(enemy_cell, 1);
                 if (new_cell) {
-                    bullet = new ROL.Bullet(new_cell.x, new_cell.y, enemy, facing);            
-                    game.rol.addBullet(bullet);
-                    game.updateTurnPhase(ROL.TurnPhase.ENEMY_WAIT_END);
+                    bullet = new ROL.Bullet(new_cell.x, new_cell.y, enemy, facing);
+                    bullet.dmg   = 10;
+                    bullet.steps = 2;
+                    status = game.rol.addBullet(bullet);
+                    if (status === ROL.CellStatus.EMPTY) {
+                        game.updateTurnPhase(ROL.TurnPhase.ENEMY_WAIT_END);
+                    } else {
+                        game.updateTurnPhase(ROL.TurnPhase.ENEMY_END);
+                    }
                     return;
                 }
             }
@@ -250,10 +263,27 @@ ROL.init = function() {
      * @return  none
      */
     ROL.Game.rol.addBullet = function(bullet) {
-        var game = ROL.Game;
+        var game = ROL.Game,
+            collision,
+            actor;
         
-        game.rol.bullets.push(bullet);
-        game._addActor(bullet);
+        collision = game.checkCollision(bullet, bullet.x, bullet.y);
+        if (collision.status === ROL.CellStatus.OUT_OF_BOUNDS) {
+            console.log(bullet.name + " is out of _bounds");
+        } else if (collision.status === ROL.CellStatus.EMPTY) {
+            game.rol.bullets.push(bullet);
+            game.registerActor(bullet);
+        } else if (collision.status === ROL.CellStatus.BUSY) {
+            actor = collision.object;
+            if (ROL.Game.rol.bulletHitActor(bullet, actor)) {
+                console.log(bullet.name + " hit " + actor.name);
+                actor.damage(bullet.dmg);
+                if (!actor.isAlive()) {
+                    game.unregisterActor(actor);
+                }
+            }
+        }
+        return collision.status;
     };
     
     /**
@@ -271,7 +301,7 @@ ROL.init = function() {
         for (i = 0, len = game.rol.bullets.length; i < len; i += 1) {
             if (bullet === game.rol.bullets[i]) {
                 game.rol.bullets.splice(i, 1);
-                game._removeActor(bullet);
+                game.unregisterActor(bullet);
                 return;
             }
         }
@@ -286,12 +316,19 @@ ROL.init = function() {
     ROL.Game.rol.shoot =  function(actor) {
         var game = ROL.Game,
             cell = actor.getCell(),
-            bullet;
+            bullet,
+            status;
 
         cell = ROL.Key[actor.facing].move(actor.getCell(), 1);
         if (cell) {
-            bullet = new ROL.Bullet(cell.x, cell.y, actor, actor.facing);            
-            game.rol.addBullet(bullet);
+            bullet = new ROL.Bullet(cell.x, cell.y, actor, actor.facing);   
+            bullet.dmg = 10;
+            status = game.rol.addBullet(bullet);
+            if (status === ROL.CellStatus.EMPTY) {
+                game.updateTurnPhase(ROL.TurnPhase.PLAYER_WAIT_END);
+            } else {
+                game.updateTurnPhase(ROL.TurnPhase.PLAYER_END);
+            }
         }
     };
     
@@ -319,6 +356,7 @@ ROL.init = function() {
             remove_bullets = [],
             bullet,
             cell,
+            new_cell,
             collision,
             actor;
 
@@ -326,25 +364,33 @@ ROL.init = function() {
             bullet = game.rol.bullets[i];
             cell   = bullet.getCell();
 
-            bullet.moveFrame();
-            collision = game.checkCollision(bullet, cell.x, cell.y);
-            if (collision === true) {
-                console.log("Bullet out of screen");
+            if (bullet.steps === 0) {
                 game.updateTurnPhase(next_phase);
                 remove_bullets.push(bullet);
-            } else if (collision !== false) {
-                actor = collision;
-                if (ROL.Game.rol.bulletHitActor(bullet, actor)) {
-                    console.log("Bullet hit " + actor.name);
-                    actor.damage(null);
-                    if (!actor.isAlive()) {
-                        game._removeActor(actor);
+            } else {
+                new_cell = bullet.moveFrame();
+                collision = game.checkCollision(bullet, new_cell.x, new_cell.y);
+                if (collision.status === ROL.CellStatus.OUT_OF_BOUNDS) {
+                    console.log("Bullet out of screen");
+                    game.updateTurnPhase(next_phase);
+                    remove_bullets.push(bullet);
+                } else if (collision.status === ROL.CellStatus.EMPTY) {
+                    game.moveActor(bullet, new_cell.x, new_cell.y);
+                    bullet.steps -= 1;
+                } else if (collision.status === ROL.CellStatus.BUSY) {
+                    actor = collision.object;
+                    if (ROL.Game.rol.bulletHitActor(bullet, actor)) {
+                        console.log("Bullet hit " + actor.name);
+                        actor.damage(bullet.dmg);
+                        if (!actor.isAlive()) {
+                            game.unregisterActor(actor);
+                        }
                     }
+                    game.updateTurnPhase(next_phase);
+                    remove_bullets.push(bullet);
                 }
-                game.updateTurnPhase(next_phase);
-                remove_bullets.push(bullet);
             }
-
+            
             if (remove_bullets.length > 0) {
                 for (i = 0, len = remove_bullets.length; i < len; i += 1) {
                     game.rol.removeBullet(remove_bullets[i]);
@@ -366,7 +412,6 @@ ROL.init = function() {
     ROL.Game.registerUpdateAction(ROL.TurnPhase.PLAYER_ACT, 
                                   function(game){
                                     game.rol.shoot(game.player);
-                                    game.updateTurnPhase(ROL.TurnPhase.PLAYER_WAIT_END);
                                   }, 
                                   ROL.Game);
                                   

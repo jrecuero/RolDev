@@ -80,7 +80,54 @@ ROL.Grid = function(cell_size, x_cells, y_cells) {
     this.cells_in_width  = x_cells;
     this.cells_in_height = y_cells;
     this.stroke_style    = "yellow";
+    this.grid            = jcRap.Framework.createArray(x_cells, y_cells);
     return this;
+};
+
+ROL.Grid.prototype.getObjectInCell = function(col, row) {
+    return this.grid[row][col];
+};
+
+ROL.Grid.prototype.setObjectInCell = function(col, row, obj) {
+    this.grid[row][col] = obj;
+    return obj;
+};
+
+ROL.Grid.prototype.clearObjectInCell = function(col, row) {
+    return this.setObjectInCell(col, row, null);
+};
+
+
+/**
+ * Checks if game object collides with any other game objects.
+ * @public
+ * @function
+ * @param   {int} col       Cell coordinate x for checking collision
+ * @param   {int} row       Cell coordinate y for checking collision
+ * @param   {Object} obj    Object to check.
+ * @type    {ROL.CellStatData}
+ * @return  {ROL.GameObject} if it collides with other game object. 
+ *          <p><b>true</b> if it is out of screen.
+ *          <p><b>false</b> if it doesn't collide inside the canvas.
+ */
+ROL.Grid.prototype.checkObjectInCell = function(col, row, obj) {
+    var obj_in_cell,
+        result;
+        
+    
+    result = new ROL.CellStatData();
+    if ((col < 0) || (col >= this.cells_in_width) || (row < 0) || (row >= this.cells_in_height)) {
+        result.status = ROL.CellStatus.OUT_OF_BOUNDS;
+    } else {
+        obj_in_cell = this.grid[row][col];
+        if (obj_in_cell) {
+            if (obj !== obj_in_cell) {
+                result.status = ROL.CellStatus.BUSY;
+                result.object = obj_in_cell;
+            }
+        }
+    }
+    return result;
 };
 
 /**
@@ -93,7 +140,7 @@ ROL.Grid = function(cell_size, x_cells, y_cells) {
  */
 ROL.Grid.prototype.getCornerPosFromCell = function(x_cell, y_cell) {
     var point = new ROL.Point(x_cell === null ? null : x_cell * this.cell_size, 
-                          y_cell === null ? null : y_cell * this.cell_size);
+                              y_cell === null ? null : y_cell * this.cell_size);
     return point;
 };
 
@@ -108,7 +155,7 @@ ROL.Grid.prototype.getCornerPosFromCell = function(x_cell, y_cell) {
 ROL.Grid.prototype.getCenterPosFromCell = function(x_cell, y_cell) {
     var half_cell = this.cell_size / 2,
         point     = new ROL.Point(x_cell === null ? null : (x_cell * this.cell_size) + half_cell, 
-                              y_cell === null ? null : (y_cell * this.cell_size) + half_cell);
+                                  y_cell === null ? null : (y_cell * this.cell_size) + half_cell);
     return point;
 };
 

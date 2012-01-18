@@ -208,3 +208,14 @@ ROL.TurnPhase = {
     ENEMY_END:       9,
     END:             10
 };
+
+ROL.CellStatus = {
+    EMPTY:          0,
+    BUSY:           1,
+    OUT_OF_BOUNDS:  -1
+};
+
+ROL.CellStatData = function(status, object) {
+    this.status = status || ROL.CellStatus.EMPTY;
+    this.object = object || null;
+};
