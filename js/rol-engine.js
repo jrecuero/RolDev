@@ -498,7 +498,7 @@ ROL.Game = {
         if (move) {
             this.turn_phase = ROL.TurnPhase.ENEMY_START;
             
-            result = this.player.checkCollision(player_cell.x, player_cell.y, this.actors);
+            result = this.checkCollision(this.player, player_cell.x, player_cell.y);
             if (result.status !== ROL.CellStatus.EMPTY) {
                 player_cell.x = null;
                 player_cell.y = null;

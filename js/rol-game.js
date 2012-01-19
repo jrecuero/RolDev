@@ -105,7 +105,7 @@ ROL.Enemy = function(game, name) {
             sprite.stroke = "black";
             sprite.fill   = "red";
             do {
-                result = enemy.checkCollision(cell.x, cell.y, game.actors);
+                result = game.checkCollision(enemy, cell.x, cell.y);
                 if (result.status === ROL.CellStatus.EMPTY) {
                     empty_cell = true;
                 } else {
@@ -153,7 +153,11 @@ jcRap.Framework.extend(ROL.Pillar, ROL.BackgroundObject);
  */
 ROL.init = function() {
     var canvas  = document.getElementById("screen-canvas"),
-        context = canvas.getContext("2d");
+        context = canvas.getContext("2d"),
+        row, col,
+        figure,
+        sprite;
+                
 
     /* Customize ROL.Game object with specific information for the game to
      * play.
@@ -229,7 +233,7 @@ ROL.init = function() {
             }
 
             if (move) {
-                result = enemy.checkCollision(new_cell.x, new_cell.y, game.actors);
+                result = game.checkCollision(enemy, new_cell.x, new_cell.y);
                 if (result.status !== ROL.CellStatus.EMPTY) {
                     new_cell.x = null;
                     new_cell.y = null;
@@ -400,6 +404,16 @@ ROL.init = function() {
     };
     
     ROL.Game.init();
+    
+    for (row = 0; row < ROL.Game.screen.y_cells; row += 1) {
+        for (col = 0; col < ROL.Game.screen.x_cells; col += 1) {
+            figure = new ROL.Rectangle(col, row, ROL.Game.grid.cell_size, ROL.Game.grid.cell_size, ROL.Game.grid.cell_size);
+            sprite = new ROL.Sprite(figure);
+            sprite.stroke = "black";
+            sprite.fill   = row % 2 ? (col % 2 ? "green" : "yellow") : (col % 2 ? "cyan" : "white");
+            ROL.Game.grid.setBackgroundInCell(col, row, sprite);
+        }
+    }
     
     ROL.Game.registerActor(new ROL.Pillar(ROL.Game, 10, 10));
     

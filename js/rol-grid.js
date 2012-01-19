@@ -81,8 +81,23 @@ ROL.Grid = function(cell_size, x_cells, y_cells) {
     this.cells_in_height = y_cells;
     this.stroke_style    = "yellow";
     this.grid            = jcRap.Framework.createArray(x_cells, y_cells);
+    this.background      = jcRap.Framework.createArray(x_cells, y_cells);
     return this;
 };
+
+ROL.Grid.prototype.getBackgroundInCell = function(col, row) {
+    return this.background[row][col];
+};
+
+ROL.Grid.prototype.setBackgroundInCell = function(col, row, obj) {
+    this.background[row][col] = obj;
+    return obj;
+};
+
+ROL.Grid.prototype.clearBackgroundInCell = function(col, row) {
+    return this.setBackgroundInCell(col, row, null);
+};
+
 
 ROL.Grid.prototype.getObjectInCell = function(col, row) {
     return this.grid[row][col];
@@ -183,7 +198,16 @@ ROL.Grid.prototype.getCellFromPos = function(x_pos, y_pos) {
 ROL.Grid.prototype.draw = function(ctx) {
     var width  = this.cell_size * this.cells_in_width,
         height = this.cell_size * this.cells_in_height,
+        row, col,
         x, y;
+        
+    for (row = 0; row < this.cells_in_height; row += 1) {
+        for (col = 0; col < this.cells_in_width; col += 1) {
+            if (this.background[row][col]) {
+                this.background[row][col].draw(ctx);
+            }
+        }
+    }
 
     ctx.strokeStyle = this.stroke_style;
     ctx.beginPath();
