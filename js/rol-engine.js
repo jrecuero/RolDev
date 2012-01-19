@@ -282,6 +282,22 @@ ROL.Ammo.prototype.moveFrame = function() {
     return cell;
 };
 
+/**
+ *
+ */
+ROL.Ammo.prototype.hitActor = function(actor) {
+    if ((actor.role === ROL.Role.ENEMY) && (this.owner.role === ROL.Role.PLAYER)) {
+        /* Player ammo hits an enemy. */
+        return true;            
+    } else if ((actor.role === ROL.Role.PLAYER) && (this.owner.role === ROL.Role.ENEMY)) {
+        /* Enemy ammo hits the player. */
+        return true;
+    } else if (actor instanceof ROL.Ammo) {
+        return true;
+    }
+    return false;
+};
+
 
 /**
  * Main game object
@@ -291,8 +307,9 @@ ROL.Ammo.prototype.moveFrame = function() {
  * @property {int} loop_timeout Game timeout between updates
  * @property {Object} keys_down Keys pressed at any time
  * @property {ROL.Actor} player Player {@link ROL.Actor} actor
- * @property {Array} enemies    Array of {@link ROL.Actor}
  * @property {Array} actors     Arrays of {@link ROL.Actor}
+ * @property {Array} enemies    Array of {@link ROL.Actor}
+ * @property {Array} ammos      Array of (@link ROL.Ammo}
  * @property {ROL.TurnPhase} turn_phase Game turn phase
  */
 ROL.Game = {
@@ -307,8 +324,9 @@ ROL.Game = {
     loop_timeout: 30,
     keys_down: {},
     player: null,
-    enemies: [],
     actors: [],
+    enemies: [],
+    ammos: [],
     key_actions: {},
     update_actions: {},
     turn_phase: ROL.TurnPhase.NONE,
@@ -333,9 +351,14 @@ ROL.Game = {
             this.player = actor;
         } else if (role === ROL.Role.ENEMY) {
             this.enemies.push(actor);
+        } else if (actor instanceof ROL.Ammo) {
+            this.registerAmmo(actor);
         }
         this._addActor(actor);
         this.grid.setObjectInCell(cell.x, cell.y, actor);
+    },
+    registerAmmo: function(ammo) {
+        this.ammos.push(ammo);
     },
     unregisterActor: function(actor) {
         var cell,
@@ -344,9 +367,23 @@ ROL.Game = {
         if (found) {
             cell = actor.getCell();
             this.grid.clearObjectInCell(cell.x, cell.y);
+            if (actor instanceof ROL.Ammo) {
+                this.unregisterAmmo(actor);
+            }
         }
         
         return found;
+    },
+    unregisterAmmo: function(ammo) {
+        var len,
+            i;
+
+        for (i = 0, len = this.ammos.length; i < len; i += 1) {
+            if (ammo === this.ammos[i]) {
+                this.ammos.splice(i, 1);
+                return;
+            }
+        }
     },
     _registerAction: function(engine_attr, field, action, params) {
         if (this[engine_attr].hasOwnProperty(field) === false) {
@@ -385,8 +422,6 @@ ROL.Game = {
         return null;
     },
     checkCollision: function(actor, x, y) {
-//        var collision = actor.checkCollision(x, y, this.actors);
-//        return collision;
         return this.grid.checkObjectInCell(x, y, actor);
     },
     /**
@@ -558,6 +593,74 @@ ROL.Game = {
         }
         
         return found;
+    },
+    /**
+     * Adds a bullet.
+     * @public
+     * @function
+     * @param   {ROL.Ammo} ammo Ammunition to be added.
+     * @return  none
+     */
+    _addAmmo: function(ammo) {
+        var collision,
+            actor;
+
+        collision = this.checkCollision(ammo, ammo.x, ammo.y);
+        if (collision.status === ROL.CellStatus.OUT_OF_BOUNDS) {
+            console.log(ammo.name + " is out of _bounds");
+        } else if (collision.status === ROL.CellStatus.EMPTY) {
+            this.registerActor(ammo);
+        } else if (collision.status === ROL.CellStatus.BUSY) {
+            actor = collision.object;
+            if (ammo.hitActor(actor)) {
+                console.log(ammo.name + " hit " + actor.name);
+                actor.damage(ammo.dmg);
+                if (!actor.isAlive()) {
+                    this.unregisterActor(actor);
+                }
+            }
+        }
+        return collision.status;
+//        return this._updateAmmo(ammo, ROL.State.ADD);
+    },
+    _updateAmmo: function(ammo, state, new_cell) {
+        var collision,
+            actor,
+            to_be_removed = [];
+
+        new_cell  = new_cell || ammo.getCell();
+        collision = this.checkCollision(ammo, ammo.x, ammo.y);
+        if (collision.status === ROL.CellStatus.OUT_OF_BOUNDS) {
+            console.log(ammo.name + " is out of _bounds");
+            if (state === ROL.UPDATE) {
+                to_be_removed.push(ammo);
+            }
+        } else if (collision.status === ROL.CellStatus.EMPTY) {
+            switch (state) {
+            case ROL.State.ADD:
+                this.registerActor(ammo);
+                break;
+            case ROL.State.UPDATE:
+                this.moveActor(ammo, new_cell.x, new_cell.y);
+                ammo.steps -= 1;
+                break;
+            default:
+                break;
+            }
+        } else if (collision.status === ROL.CellStatus.BUSY) {
+            actor = collision.object;
+            if (ammo.hitActor(actor)) {
+                console.log(ammo.name + " hit " + actor.name);
+                actor.damage(ammo.dmg);
+                if (!actor.isAlive()) {
+                    this.unregisterActor(actor);
+                }
+                if (state === ROL.UPDATE) {
+                    to_be_removed.push(ammo);
+                }
+            }
+        }
+        return collision.status;
     },
     _processUpdate: function(state) {
         var i,

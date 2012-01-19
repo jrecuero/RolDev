@@ -145,265 +145,211 @@ ROL.Pillar = function(game, x, y) {
 jcRap.Framework.extend(ROL.Pillar, ROL.BackgroundObject);
 
 
+/* Customize ROL.Game object with specific information for the game to
+ * play.
+ */
+ROL.Game.createPlayer = function () {
+    var player = new ROL.Hero(ROL.Game, "Hero");
+    this.registerActor(player);
+    return player;
+};
+
 /**
- * Initializes all objects.
+ *
+ */
+ROL.Game.createEnemy = function () {
+    var enemy = new ROL.Enemy(ROL.Game, "Goblin");
+    this.registerActor(enemy);
+    return enemy;
+};
+
+
+/**
+ * Specific Game Objects.
+ */
+ROL.Game.rol = {};
+
+
+/**
+ * @function
+ */
+ROL.Game.rol.updateEnemy = function(game) {
+    var i,
+        enemy,
+        enemies_len,
+        enemy_cell,
+        new_cell,
+        player_cell,
+        move  = true,
+        shoot = false,
+        facing = null,
+        bullet,
+        status,
+        result;
+
+    player_cell = game.player.getCell();
+
+    for (i = 0, enemies_len = game.enemies.length; i < enemies_len; i += 1) {
+        enemy      = game.enemies[i];
+        enemy_cell = enemy.getCell();
+
+        new_cell = new ROL.Point(enemy_cell.x, enemy_cell.y);
+        if (player_cell.x > enemy_cell.x) {
+            new_cell.x = enemy_cell.x + 1;
+        } else if (player_cell.x < enemy_cell.x) {
+            new_cell.x = enemy_cell.x - 1;
+        } else {
+            move  = false;
+            shoot = true;
+            if (player_cell.y > enemy_cell.y) {
+                facing = ROL.Facing.DOWN;
+            } else {
+                facing = ROL.Facing.UP;
+            }
+        }
+
+        if (!shoot) {
+            if (player_cell.y > enemy_cell.y) {
+                new_cell.y = enemy_cell.y + 1;
+            } else if (player_cell.y < enemy_cell.y) {
+                new_cell.y = enemy_cell.y - 1;
+            } else {
+                move  = false;
+                shoot = true;
+                if (player_cell.x > enemy_cell.x) {
+                    facing = ROL.Facing.RIGHT;
+                } else {
+                    facing = ROL.Facing.LEFT;
+                }
+            } 
+        }
+
+        if (move) {
+            result = game.checkCollision(enemy, new_cell.x, new_cell.y);
+            if (result.status !== ROL.CellStatus.EMPTY) {
+                new_cell.x = null;
+                new_cell.y = null;
+            }
+
+            game.moveActor(enemy, new_cell.x, new_cell.y);
+        } else {
+            new_cell = ROL.Key[facing].move(enemy_cell, 1);
+            if (new_cell) {
+                bullet = new ROL.Bullet(new_cell.x, new_cell.y, enemy, facing);
+                bullet.dmg   = 10;
+                bullet.steps = 2;
+                status = game._addAmmo(bullet);
+                if (status === ROL.CellStatus.EMPTY) {
+                    game.updateTurnPhase(ROL.TurnPhase.ENEMY_WAIT_END);
+                } else {
+                    game.updateTurnPhase(ROL.TurnPhase.ENEMY_END);
+                }
+                return;
+            }
+        }
+    }
+    game.updateTurnPhase(ROL.TurnPhase.ENEMY_END);
+};
+
+
+/**
+ * Player shooting.
  * @public
  * @function
  * @return  none
  */
-ROL.init = function() {
-    var canvas  = document.getElementById("screen-canvas"),
-        context = canvas.getContext("2d"),
-        row, col,
-        figure,
-        sprite;
-                
+ROL.Game.rol.shoot =  function(actor, damage, facing) {
+    var game = ROL.Game,
+        cell = actor.getCell(),
+        bullet,
+        status;
 
-    /* Customize ROL.Game object with specific information for the game to
-     * play.
-     */
-    ROL.Game.createPlayer = function () {
-        var player = new ROL.Hero(ROL.Game, "Hero");
-        this.registerActor(player);
-        return player;
-    };
-    
-    ROL.Game.createEnemy = function () {
-        var enemy = new ROL.Enemy(ROL.Game, "Goblin");
-        this.registerActor(enemy);
-        return enemy;
-    };
-
-    ROL.Game.rol = {};
-    
-    /**
-     * @property {Array} bullets    Array of {@link ROL.Bullet}
-     */
-    ROL.Game.rol.bullets = [];
-    
-    ROL.Game.rol.updateEnemy = function(game) {
-        var i,
-            enemy,
-            enemies_len,
-            enemy_cell,
-            new_cell,
-            player_cell,
-            move  = true,
-            shoot = false,
-            facing = null,
-            bullet,
-            status,
-            result;
-
-        player_cell = game.player.getCell();
-        
-        for (i = 0, enemies_len = game.enemies.length; i < enemies_len; i += 1) {
-            enemy      = game.enemies[i];
-            enemy_cell = enemy.getCell();
-            
-            new_cell = new ROL.Point(enemy_cell.x, enemy_cell.y);
-            if (player_cell.x > enemy_cell.x) {
-                new_cell.x = enemy_cell.x + 1;
-            } else if (player_cell.x < enemy_cell.x) {
-                new_cell.x = enemy_cell.x - 1;
-            } else {
-                move  = false;
-                shoot = true;
-                if (player_cell.y > enemy_cell.y) {
-                    facing = ROL.Facing.DOWN;
-                } else {
-                    facing = ROL.Facing.UP;
-                }
-            }
-    
-            if (!shoot) {
-                if (player_cell.y > enemy_cell.y) {
-                    new_cell.y = enemy_cell.y + 1;
-                } else if (player_cell.y < enemy_cell.y) {
-                    new_cell.y = enemy_cell.y - 1;
-                } else {
-                    move  = false;
-                    shoot = true;
-                    if (player_cell.x > enemy_cell.x) {
-                        facing = ROL.Facing.RIGHT;
-                    } else {
-                        facing = ROL.Facing.LEFT;
-                    }
-                } 
-            }
-
-            if (move) {
-                result = game.checkCollision(enemy, new_cell.x, new_cell.y);
-                if (result.status !== ROL.CellStatus.EMPTY) {
-                    new_cell.x = null;
-                    new_cell.y = null;
-                }
-
-                game.moveActor(enemy, new_cell.x, new_cell.y);
-            } else {
-                new_cell = ROL.Key[facing].move(enemy_cell, 1);
-                if (new_cell) {
-                    bullet = new ROL.Bullet(new_cell.x, new_cell.y, enemy, facing);
-                    bullet.dmg   = 10;
-                    bullet.steps = 2;
-                    status = game.rol.addBullet(bullet);
-                    if (status === ROL.CellStatus.EMPTY) {
-                        game.updateTurnPhase(ROL.TurnPhase.ENEMY_WAIT_END);
-                    } else {
-                        game.updateTurnPhase(ROL.TurnPhase.ENEMY_END);
-                    }
-                    return;
-                }
-            }
+    facing = facing || actor.facing;
+    damage = damage || 10;
+    cell = ROL.Key[facing].move(actor.getCell(), 1);
+    if (cell) {
+        bullet     = new ROL.Bullet(cell.x, cell.y, actor, facing);   
+        bullet.dmg = damage;
+        status     = game._addAmmo(bullet);
+        if (status === ROL.CellStatus.EMPTY) {
+            game.updateTurnPhase(ROL.TurnPhase.PLAYER_WAIT_END);
+        } else {
+            game.updateTurnPhase(ROL.TurnPhase.PLAYER_END);
         }
-        game.updateTurnPhase(ROL.TurnPhase.ENEMY_END);
-    };
-    
-    /**
-     * Adds a bullet.
-     * @public
-     * @function
-     * @param   {ROL.Bullet} bullet bullet to be added
-     * @return  none
-     */
-    ROL.Game.rol.addBullet = function(bullet) {
-        var game = ROL.Game,
-            collision,
-            actor;
-        
-        collision = game.checkCollision(bullet, bullet.x, bullet.y);
-        if (collision.status === ROL.CellStatus.OUT_OF_BOUNDS) {
-            console.log(bullet.name + " is out of _bounds");
-        } else if (collision.status === ROL.CellStatus.EMPTY) {
-            game.rol.bullets.push(bullet);
-            game.registerActor(bullet);
-        } else if (collision.status === ROL.CellStatus.BUSY) {
-            actor = collision.object;
-            if (ROL.Game.rol.bulletHitActor(bullet, actor)) {
-                console.log(bullet.name + " hit " + actor.name);
-                actor.damage(bullet.dmg);
-                if (!actor.isAlive()) {
-                    game.unregisterActor(actor);
-                }
-            }
-        }
-        return collision.status;
-    };
-    
-    /**
-     * Removes a bullet
-     * @public
-     * @function
-     * @param   {ROL.Bullet} bullet bullet to be removed
-     * @return  none
-     */
-    ROL.Game.rol.removeBullet = function(bullet) {
-        var game = ROL.Game,
-            len,
-            i;
+    }
+};
 
-        for (i = 0, len = game.rol.bullets.length; i < len; i += 1) {
-            if (bullet === game.rol.bullets[i]) {
-                game.rol.bullets.splice(i, 1);
-                game.unregisterActor(bullet);
-                return;
-            }
-        }
-    };
-    
-    /**
-     * Player shooting.
-     * @public
-     * @function
-     * @return  none
-     */
-    ROL.Game.rol.shoot =  function(actor) {
-        var game = ROL.Game,
-            cell = actor.getCell(),
-            bullet,
-            status;
+/**
+ * @description Shot four bullets every one in a different direction.
+ */
+ROL.Game.rol.multishoot = function(actor) {
+    ROL.Game.rol.shoot(actor, 10, ROL.Facing.UP);
+    ROL.Game.rol.shoot(actor, 10, ROL.Facing.DOWN);
+    ROL.Game.rol.shoot(actor, 10, ROL.Facing.LEFT);
+    ROL.Game.rol.shoot(actor, 10, ROL.Facing.RIGHT);
+};
 
-        cell = ROL.Key[actor.facing].move(actor.getCell(), 1);
-        if (cell) {
-            bullet = new ROL.Bullet(cell.x, cell.y, actor, actor.facing);   
-            bullet.dmg = 10;
-            status = game.rol.addBullet(bullet);
-            if (status === ROL.CellStatus.EMPTY) {
-                game.updateTurnPhase(ROL.TurnPhase.PLAYER_WAIT_END);
-            } else {
-                game.updateTurnPhase(ROL.TurnPhase.PLAYER_END);
-            }
-        }
-    };
-    
-    ROL.Game.rol.bulletHitActor = function(bullet, actor) {
-        if ((actor.role === ROL.Role.ENEMY) && (bullet.owner.role === ROL.Role.PLAYER)) {
-            /* Player bullet hits an enemy. */
-            return true;            
-        } else if ((actor.role === ROL.Role.PLAYER) && (bullet.owner.role === ROL.Role.ENEMY)) {
-            /* Enemy bullet hits the player. */
-            return true;
-        }
-        return false;
-    };
-    
-    /**
-     * Update player bullet.
-     * @public
-     * @function
-     * @return  none
-     */
-    ROL.Game.rol.updateBullet = function(next_phase) {
-        var game = ROL.Game,
-            i,
-            len,
-            remove_bullets = [],
-            bullet,
-            cell,
-            new_cell,
-            collision,
-            actor;
+/**
+ * Update player bullet.
+ * @public
+ * @function
+ * @return  none
+ */
+ROL.Game.rol.updateBullet = function(next_phase) {
+    var game = ROL.Game,
+        i,
+        len,
+        remove_bullets = [],
+        bullet,
+        new_cell,
+        collision,
+        actor;
 
-        for (i = 0, len = game.rol.bullets.length; i < len; i += 1) {
-            bullet = game.rol.bullets[i];
-            cell   = bullet.getCell();
+    for (i = 0, len = game.ammos.length; i < len; i += 1) {
+        bullet = game.ammos[i];
 
-            if (bullet.steps === 0) {
+        if (bullet.steps === 0) {
+            game.updateTurnPhase(next_phase);
+            remove_bullets.push(bullet);
+        } else {
+            new_cell = bullet.moveFrame();
+            collision = game.checkCollision(bullet, new_cell.x, new_cell.y);
+            if (collision.status === ROL.CellStatus.OUT_OF_BOUNDS) {
+                console.log("Bullet out of screen");
                 game.updateTurnPhase(next_phase);
                 remove_bullets.push(bullet);
-            } else {
-                new_cell = bullet.moveFrame();
-                collision = game.checkCollision(bullet, new_cell.x, new_cell.y);
-                if (collision.status === ROL.CellStatus.OUT_OF_BOUNDS) {
-                    console.log("Bullet out of screen");
-                    game.updateTurnPhase(next_phase);
-                    remove_bullets.push(bullet);
-                } else if (collision.status === ROL.CellStatus.EMPTY) {
-                    game.moveActor(bullet, new_cell.x, new_cell.y);
-                    bullet.steps -= 1;
-                } else if (collision.status === ROL.CellStatus.BUSY) {
-                    actor = collision.object;
-                    if (ROL.Game.rol.bulletHitActor(bullet, actor)) {
-                        console.log("Bullet hit " + actor.name);
-                        actor.damage(bullet.dmg);
-                        if (!actor.isAlive()) {
-                            game.unregisterActor(actor);
-                        }
+            } else if (collision.status === ROL.CellStatus.EMPTY) {
+                game.moveActor(bullet, new_cell.x, new_cell.y);
+                bullet.steps -= 1;
+            } else if (collision.status === ROL.CellStatus.BUSY) {
+                actor = collision.object;
+                if (bullet.hitActor(actor)) {
+                    console.log("Bullet hit " + actor.name);
+                    actor.damage(bullet.dmg);
+                    if (!actor.isAlive()) {
+                        game.unregisterActor(actor);
                     }
-                    game.updateTurnPhase(next_phase);
-                    remove_bullets.push(bullet);
                 }
-            }
-            
-            if (remove_bullets.length > 0) {
-                for (i = 0, len = remove_bullets.length; i < len; i += 1) {
-                    game.rol.removeBullet(remove_bullets[i]);
-                }
+                game.updateTurnPhase(next_phase);
+                remove_bullets.push(bullet);
             }
         }
-    };
-    
-    ROL.Game.init();
+
+        if (remove_bullets.length > 0) {
+            for (i = 0, len = remove_bullets.length; i < len; i += 1) {
+                game.unregisterActor(remove_bullets[i]);
+            }
+        }
+    }
+};
+
+/**
+ *
+ */
+ROL.Game.rol.createBackground = function() {
+    var row, col,
+        figure,
+        sprite;
     
     for (row = 0; row < ROL.Game.screen.y_cells; row += 1) {
         for (col = 0; col < ROL.Game.screen.x_cells; col += 1) {
@@ -414,6 +360,22 @@ ROL.init = function() {
             ROL.Game.grid.setBackgroundInCell(col, row, sprite);
         }
     }
+};
+
+
+/**
+ * Initializes all objects.
+ * @public
+ * @function
+ * @return  none
+ */
+ROL.init = function() {
+    var canvas  = document.getElementById("screen-canvas"),
+        context = canvas.getContext("2d");
+    
+    ROL.Game.init();
+    
+    ROL.Game.rol.createBackground();
     
     ROL.Game.registerActor(new ROL.Pillar(ROL.Game, 10, 10));
     
@@ -426,6 +388,7 @@ ROL.init = function() {
     ROL.Game.registerUpdateAction(ROL.TurnPhase.PLAYER_ACT, 
                                   function(game){
                                     game.rol.shoot(game.player);
+                                    //game.rol.multishoot(game.player);
                                   }, 
                                   ROL.Game);
                                   

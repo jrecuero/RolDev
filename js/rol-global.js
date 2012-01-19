@@ -209,6 +209,12 @@ ROL.TurnPhase = {
     END:             10
 };
 
+ROL.State = {
+    NONE:   0,
+    ADD:    1,
+    UPDATE: 2
+};
+
 ROL.CellStatus = {
     EMPTY:          0,
     BUSY:           1,
