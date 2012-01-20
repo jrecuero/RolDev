@@ -290,60 +290,6 @@ ROL.Game.rol.multishoot = function(actor) {
 };
 
 /**
- * Update player bullet.
- * @public
- * @function
- * @return  none
- */
-ROL.Game.rol.updateBullet = function(next_phase) {
-    var game = ROL.Game,
-        i,
-        len,
-        remove_bullets = [],
-        bullet,
-        new_cell,
-        collision,
-        actor;
-
-    for (i = 0, len = game.ammos.length; i < len; i += 1) {
-        bullet = game.ammos[i];
-
-        if (bullet.steps === 0) {
-            game.updateTurnPhase(next_phase);
-            remove_bullets.push(bullet);
-        } else {
-            new_cell = bullet.moveFrame();
-            collision = game.checkCollision(bullet, new_cell.x, new_cell.y);
-            if (collision.status === ROL.CellStatus.OUT_OF_BOUNDS) {
-                console.log("Bullet out of screen");
-                game.updateTurnPhase(next_phase);
-                remove_bullets.push(bullet);
-            } else if (collision.status === ROL.CellStatus.EMPTY) {
-                game.moveActor(bullet, new_cell.x, new_cell.y);
-                bullet.steps -= 1;
-            } else if (collision.status === ROL.CellStatus.BUSY) {
-                actor = collision.object;
-                if (bullet.hitActor(actor)) {
-                    console.log("Bullet hit " + actor.name);
-                    actor.damage(bullet.dmg);
-                    if (!actor.isAlive()) {
-                        game.unregisterActor(actor);
-                    }
-                }
-                game.updateTurnPhase(next_phase);
-                remove_bullets.push(bullet);
-            }
-        }
-
-        if (remove_bullets.length > 0) {
-            for (i = 0, len = remove_bullets.length; i < len; i += 1) {
-                game.unregisterActor(remove_bullets[i]);
-            }
-        }
-    }
-};
-
-/**
  *
  */
 ROL.Game.rol.createBackground = function() {
@@ -356,7 +302,7 @@ ROL.Game.rol.createBackground = function() {
             figure = new ROL.Rectangle(col, row, ROL.Game.grid.cell_size, ROL.Game.grid.cell_size, ROL.Game.grid.cell_size);
             sprite = new ROL.Sprite(figure);
             sprite.stroke = "black";
-            sprite.fill   = row % 2 ? (col % 2 ? "green" : "yellow") : (col % 2 ? "cyan" : "white");
+            sprite.fill   = "white";
             ROL.Game.grid.setBackgroundInCell(col, row, sprite);
         }
     }
@@ -387,14 +333,14 @@ ROL.init = function() {
     
     ROL.Game.registerUpdateAction(ROL.TurnPhase.PLAYER_ACT, 
                                   function(game){
-                                    game.rol.shoot(game.player);
-                                    //game.rol.multishoot(game.player);
+                                    //game.rol.shoot(game.player);
+                                    game.rol.multishoot(game.player);
                                   }, 
                                   ROL.Game);
                                   
     ROL.Game.registerUpdateAction(ROL.TurnPhase.PLAYER_WAIT_END, 
                                   function(game){
-                                    game.rol.updateBullet(ROL.TurnPhase.PLAYER_END);
+                                    game.updateAllAmmo(ROL.TurnPhase.PLAYER_END);
                                   }, 
                                   ROL.Game);
                                   
@@ -404,7 +350,7 @@ ROL.init = function() {
                                   
     ROL.Game.registerUpdateAction(ROL.TurnPhase.ENEMY_WAIT_END, 
                                   function(game){
-                                    game.rol.updateBullet(ROL.TurnPhase.ENEMY_END);
+                                    game.updateAllAmmo(ROL.TurnPhase.ENEMY_END);
                                   }, 
                                   ROL.Game);
 

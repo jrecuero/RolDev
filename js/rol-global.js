@@ -176,6 +176,14 @@ ROL.Key = {
         move: function() {
             return null;
         }
+    },
+    S: {
+        code: 115,
+        facing: ROL.Facing.NONE,
+        move_key: false,
+        move: function() {
+            return null;
+        }
     }
 };
 
@@ -218,6 +226,7 @@ ROL.State = {
 ROL.CellStatus = {
     EMPTY:          0,
     BUSY:           1,
+    OUT_OF_STEPS:   2,
     OUT_OF_BOUNDS:  -1
 };
 
